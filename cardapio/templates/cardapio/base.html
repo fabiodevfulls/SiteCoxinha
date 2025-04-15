@@ -26,6 +26,25 @@
             height: 40px;
             margin-right: 10px;
         }
+        .user-dropdown {
+            margin-left: 15px;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .dropdown-menu .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+        .accordion-button:not(.collapsed) {
+            background-color: #e53935;
+            color: white;
+        }
+        .accordion-button {
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -56,8 +75,39 @@
                         <a class="nav-link" href="{% url 'menu' %}?categoria=Oferta">Ofertas</a>
                     </li>
                 </ul>
-                <div class="d-flex">
-                    <a href="{% url 'ver_carrinho' %}" class="btn btn-light position-relative">
+                <div class="d-flex align-items-center">
+                    {% if user.is_authenticated %}
+                    <div class="dropdown user-dropdown">
+                        <button class="btn btn-light dropdown-toggle d-flex align-items-center" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="{% static 'images/avata.png' %}" alt="Avatar" class="user-avatar">
+                            <span class="fw-semibold text-dark">{{ user.get_full_name|default:user.username }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow rounded-3">
+                            <li>
+                                <h6 class="dropdown-header text-muted">Olá, {{ user.first_name|default:user.username }}</h6>
+                            </li>
+                            <li><a class="dropdown-item d-flex align-items-center" href="#">
+                                <i class="fas fa-user text-primary me-2"></i> Minha Conta
+                            </a></li>
+                            <li><a class="dropdown-item d-flex align-items-center" href="{% url 'meus_pedidos' %}">
+                                <i class="fas fa-box text-success me-2"></i> Meus Pedidos
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item d-flex align-items-center text-danger" href="{% url 'logout' %}">
+                                <i class="fas fa-sign-out-alt me-2"></i> Sair
+                            </a></li>
+                        </ul>
+                    </div>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-outline-light me-2">
+                        <i class="fas fa-sign-in-alt me-1"></i> Entrar
+                    </a>
+                    <a href="{% url 'cadastro' %}" class="btn btn-light">
+                        <i class="fas fa-user-plus me-1"></i> Cadastrar
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'ver_carrinho' %}" class="btn btn-light position-relative ms-3">
                         <i class="fas fa-shopping-cart"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark">
                             {{ request.session.carrinho_count|default:0 }}
@@ -68,11 +118,58 @@
         </div>
     </nav>
 
+    <div class="container mt-5">
+        <div class="accordion" id="accordionExample">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingOne">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                        Coxinhas
+                    </button>
+                </h2>
+                <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                        Explore nossas deliciosas opções de coxinhas. Temos uma variedade incrível para você escolher!
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTwo">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                        Pastéis
+                    </button>
+                </h2>
+                <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                        Nossos pastéis são irresistíveis. Recheios variados e saborosos para todos os gostos!
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingThree">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                        Empadas
+                    </button>
+                </h2>
+                <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#accordionExample">
+                    <div class="accordion-body">
+                        As empadas são o prato perfeito para qualquer hora! Descubra nossas opções e escolha a sua.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% block content %}{% endblock %}
 
     <footer class="bg-dark text-white py-4 mt-5">
         <div class="container text-center">
-            <p>&copy; 2023 Coxinhas Delícia - Todos os direitos reservados</p>
+            <p>&copy; {% now "Y" %} Coxinhas Delícia - Todos os direitos reservados</p>
+            {% if not user.is_authenticated %}
+            <div class="mt-2">
+                <a href="{% url 'login' %}" class="text-white me-3">Área do Cliente</a>
+                <a href="{% url 'cadastro' %}" class="text-white">Cadastre-se</a>
+            </div>
+            {% endif %}
         </div>
     </footer>
 
@@ -83,6 +180,12 @@
             var myCarousel = new bootstrap.Carousel(document.getElementById('carouselExample'), {
                 interval: 3000,
                 ride: 'carousel'
+            });
+            
+            // Inicializa dropdowns
+            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
+            var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+                return new bootstrap.Dropdown(dropdownToggleEl)
             });
         });
     </script>

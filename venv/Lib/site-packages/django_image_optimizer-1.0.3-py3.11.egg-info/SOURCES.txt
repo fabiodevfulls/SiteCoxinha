@@ -1,0 +1,15 @@
+LICENSE
+MANIFEST.in
+README.rst
+setup.cfg
+setup.py
+django_image_optimizer.egg-info/PKG-INFO
+django_image_optimizer.egg-info/SOURCES.txt
+django_image_optimizer.egg-info/dependency_links.txt
+django_image_optimizer.egg-info/not-zip-safe
+django_image_optimizer.egg-info/requires.txt
+django_image_optimizer.egg-info/top_level.txt
+image_optimizer/__init__.py
+image_optimizer/fields.py
+image_optimizer/settings.py
+image_optimizer/utils.py

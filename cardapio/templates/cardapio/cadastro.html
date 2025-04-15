@@ -1,0 +1,77 @@
+{% extends 'cardapio/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4>Cadastro de Cliente</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Dados Básicos -->
+                        <div class="mb-4">
+                            <h5 class="mb-3">Informações Pessoais</h5>
+                            <div class="form-group">
+                                {{ form.username|as_crispy_field }}
+                            </div>
+                            <div class="form-group">
+                                {{ form.email|as_crispy_field }}
+                            </div>
+                            <div class="form-group">
+                                {{ form.password|as_crispy_field }}
+                            </div>
+                            <div class="form-group">
+                                {{ form.telefone|as_crispy_field }}
+                            </div>
+                        </div>
+
+                        <!-- Endereço -->
+                        <div class="endereco-section border-top pt-4">
+                            <h5 class="mb-3">Endereço</h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    {{ form.cep|as_crispy_field }}
+                                </div>
+                                <div class="col-md-8">
+                                    {{ form.cidade|as_crispy_field }}
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                {{ form.rua|as_crispy_field }}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    {{ form.numero|as_crispy_field }}
+                                </div>
+                                <div class="col-md-9">
+                                    {{ form.complemento|as_crispy_field }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-4">
+                            <button type="submit" class="btn btn-danger btn-block">Cadastrar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .endereco-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+    }
+    /* Ajuste para os campos do crispy forms */
+    .form-control {
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}

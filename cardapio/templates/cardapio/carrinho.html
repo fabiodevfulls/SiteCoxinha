@@ -19,12 +19,18 @@
                 {% for item in itens %}
                 <tr>
                     <td>{{ item.produto.nome }}</td>
-                    <td>{{ item.quantidade }}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <a href="{% url 'diminuir_quantidade' item.id %}" class="btn btn-sm btn-outline-secondary me-1">➖</a>
+                            <span>{{ item.quantidade }}</span>
+                            <a href="{% url 'aumentar_quantidade' item.id %}" class="btn btn-sm btn-outline-secondary ms-1">➕</a>
+                        </div>
+                    </td>
                     <td>R$ {{ item.produto.preco }}</td>
                     <td>R$ {{ item.subtotal }}</td>
                     <td>
                         <a href="{% url 'remover_do_carrinho' item.id %}" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-trash"></i>
+                            <i class="fas fa-trash"></i> Remover
                         </a>
                     </td>
                 </tr>
@@ -40,7 +46,7 @@
     </div>
     <div class="d-flex justify-content-between mt-4">
         <a href="{% url 'menu' %}" class="btn btn-outline-primary">Continuar Comprando</a>
-        <a href="#" class="btn btn-danger">Finalizar Compra</a>
+        <a href="{% url 'finalizar_compra' %}" class="btn btn-danger">Finalizar Compra</a>
     </div>
     {% else %}
     <div class="alert alert-info">

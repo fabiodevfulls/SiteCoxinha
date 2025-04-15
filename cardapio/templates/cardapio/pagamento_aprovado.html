@@ -1,0 +1,8 @@
+{% extends 'cardapio/base.html' %}
+{% block content %}
+<div class="container text-center mt-5">
+    <h2 class="text-success">Pagamento Aprovado!</h2>
+    <p>Seu pedido foi recebido com sucesso.</p>
+    <a href="{% url 'menu' %}" class="btn btn-success mt-3">Voltar ao Cardápio</a>
+</div>
+{% endblock %}

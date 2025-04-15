@@ -1,0 +1,10 @@
+{% extends 'cardapio/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-warning">
+        <h4>Pagamento Pendente</h4>
+        <p>Seu pedido #{{ pedido.id }} está sendo processado.</p>
+    </div>
+</div>
+{% endblock %}

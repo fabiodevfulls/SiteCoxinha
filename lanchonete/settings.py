@@ -33,12 +33,15 @@ SECRET_KEY = 'django-insecure-o5n*+r=n&^4!=_6^dj-%!$+pv)m9ne-^mw5*d+ol9eupimq3j%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'crispy_bootstrap5',
+    'crispy_forms',
+    'import_export',
     'cardapio',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -79,7 +82,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'lanchonete.wsgi.application'
 
-
+AUTH_USER_MODEL = 'cardapio.Usuario'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
@@ -113,13 +116,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
+TIME_ZONE = 'America/Sao_Paulo'
 USE_TZ = True
+
+
+
 
 
 # Static files (CSS, JavaScript, Images)
@@ -128,9 +129,25 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Adicione no final do settings.py
 print(f"BASE_DIR: {BASE_DIR}")
 print(f"Static files will be collected to: {BASE_DIR / 'staticfiles'}")
+IMPORT_EXPORT_USE_TRANSACTIONS = True  # Para operações atômicas
+IMPORT_EXPORT_SKIP_ADMIN_LOG = False   # Mantém histórico
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/menu/'
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
+MERCADOPAGO = {
+    'ACCESS_TOKEN': 'APP_USR-7846997858888153-041200-359a4e7c447e94688af5009e48e2ae77-1857092373',
+    'PUBLIC_KEY': 'APP_USR-bf0a16d5-65f7-4acb-a2bb-1f9efd7dd150',
+    'SANDBOX_MODE': False,
+    'AUTO_RETURN': True,
+    'WEBHOOK_URL': 'http://127.0.0.1:8000/',
+    'NOTIFICATION_URL': 'http://127.0.0.1:8000/'
+}
+

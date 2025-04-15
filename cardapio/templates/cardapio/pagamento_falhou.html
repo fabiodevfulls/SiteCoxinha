@@ -1,0 +1,11 @@
+{% extends 'cardapio/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-danger">
+        <h4>Pagamento Recusado</h4>
+        <p>O pagamento do pedido #{{ pedido.id }} não foi aprovado.</p>
+        <a href="{% url 'finalizar_compra' %}" class="btn btn-danger">Tentar Novamente</a>
+    </div>
+</div>
+{% endblock %}
