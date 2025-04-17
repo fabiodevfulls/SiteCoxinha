@@ -14,6 +14,7 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 INSTALLED_APPS = [
+    'corsheaders',
     'crispy_bootstrap5',
     'crispy_forms',
     'import_export',
@@ -36,8 +37,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'cardapio.middleware.CarrinhoMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
-
+CORS_ALLOWED_ORIGINS = [
+    "https://www.mercadopago.com.br",  # URL do Mercado Pago
+]
 ROOT_URLCONF = 'lanchonete.urls'
 
 TEMPLATES = [
@@ -95,6 +99,7 @@ MERCADOPAGO = {
     'PUBLIC_KEY': os.getenv('MERCADOPAGO_PUBLIC_KEY'),
     'SANDBOX_MODE': os.getenv('SANDBOX_MODE', 'False') == 'True',
     'AUTO_RETURN': True,
-    'WEBHOOK_URL': os.getenv('WEBHOOK_URL', 'http://127.0.0.1:8000/'),
-    'NOTIFICATION_URL': os.getenv('NOTIFICATION_URL', 'http://127.0.0.1:8000/')
+    'WEBHOOK_URL': os.getenv('WEBHOOK_URL'),
+    'NOTIFICATION_URL': os.getenv('NOTIFICATION_URL')
+
 }

@@ -218,15 +218,16 @@ def finalizar_compra(request):
         messages.error(request, f"Erro ao processar pagamento: {str(e)}")
         return redirect('ver_carrinho')
 
-
 @csrf_exempt
 def webhook_mercadopago(request):
+    if request.method == 'GET':
+        return HttpResponse("🔧 Webhook pronto para receber notificações.", status=200)
+
     if request.method == 'POST':
         try:
             payload = json.loads(request.body)
             logger.info("🔔 Webhook recebido: %s", payload)
 
-            # Verifique o status do pagamento no payload
             pagamento_status = payload.get('status', None)
             pedido_id = payload.get('data', {}).get('id', None)
             if pedido_id:
@@ -239,7 +240,9 @@ def webhook_mercadopago(request):
         except Exception as e:
             logger.error("Erro no webhook: %s", str(e))
             return HttpResponse(status=400)
+
     return HttpResponse(status=405)
+
 
 def pagamento_aprovado(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
