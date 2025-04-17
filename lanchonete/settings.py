@@ -16,12 +16,23 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'chave-insegura-para-dev')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 # settings.py
-ALLOWED_HOSTS = ['*'] if DEBUG else [
-    'lanchonetedeliciadecoxinha.kesug.com',
+
+# Defina DEBUG como True para desenvolvimento
+DEBUG = True
+
+# Adicione todos os hosts necessários
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
     'www.lanchonetedeliciadecoxinha.kesug.com',
-    '.onrender.com'
+    'lanchonetedeliciadecoxinha.kesug.com'
 ]
 
+# Desative estas configurações de segurança para desenvolvimento
+if DEBUG:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = False
 # Adicione isto se usar Render:
 if 'RENDER' in os.environ:
     RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
