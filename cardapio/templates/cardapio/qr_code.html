@@ -1,0 +1,107 @@
+{% extends 'cardapio/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <h2>Pagamento via PIX</h2>
+    
+    {% if qr_code %}
+    <div class="my-4">
+        <img src="data:image/png;base64,{{ qr_code_base64 }}" alt="QR Code PIX" class="img-fluid" style="max-width: 300px;">
+        <p class="mt-3">Escaneie o QR Code com seu aplicativo de pagamento</p>
+        <div class="alert alert-info mt-3">
+            <p>Código PIX (copiar e colar):</p>
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" id="pix-code" value="{{ qr_code }}" readonly>
+                <button class="btn btn-outline-secondary" onclick="copiarPixCode()">
+                    <i class="bi bi-clipboard"></i> Copiar
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div id="status-container" class="mt-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Aguardando pagamento...</span>
+        </div>
+        <p class="mt-2">Aguardando confirmação do pagamento...</p>
+    </div>
+
+    <input type="hidden" id="pedido-id" value="{{ pedido.id }}">
+
+    <div class="mt-4">
+        <a href="{% url 'pagamento_falhou' pedido.id %}" class="btn btn-outline-danger me-2">
+            Cancelar Pagamento
+        </a>
+        <a href="{% url 'menu' %}" class="btn btn-outline-secondary">
+            Voltar ao Cardápio
+        </a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Função para copiar código PIX
+function copiarPixCode() {
+    const pixCode = document.getElementById('pix-code');
+    pixCode.select();
+    document.execCommand('copy');
+    
+    // Mostrar feedback
+    const feedback = document.createElement('small');
+    feedback.className = 'text-success ms-2';
+    feedback.textContent = 'Copiado!';
+    pixCode.parentNode.appendChild(feedback);
+    
+    setTimeout(() => {
+        feedback.remove();
+    }, 2000);
+}
+
+// Verificar status do pagamento
+function verificarStatusPagamento() {
+    const pedidoId = document.getElementById('pedido-id').value;
+    const statusContainer = document.getElementById('status-container');
+    
+    const interval = setInterval(() => {
+        fetch(`/api/verificar-status/${pedidoId}/`)
+            .then(response => {
+                if (!response.ok) throw new Error('Erro na requisição');
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'approved') {
+                    clearInterval(interval);
+                    statusContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <h4><i class="bi bi-check-circle-fill"></i> Pagamento Confirmado!</h4>
+                            <p>Seu pagamento foi aprovado com sucesso.</p>
+                        </div>
+                    `;
+                    // Redirecionar após 3 segundos
+                    setTimeout(() => {
+                        window.location.href = `/pagamento/aprovado/${pedidoId}/`;
+                    }, 3000);
+                } else if (data.status === 'failed') {
+                    clearInterval(interval);
+                    statusContainer.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h4><i class="bi bi-exclamation-circle-fill"></i> Pagamento Não Aprovado</h4>
+                            <p>Seu pagamento não foi confirmado.</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+            });
+    }, 5000); // Verificar a cada 5 segundos
+}
+
+// Iniciar verificação quando a página carregar
+document.addEventListener('DOMContentLoaded', verificarStatusPagamento);
+</script>
+{% endblock %}

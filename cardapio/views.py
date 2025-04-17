@@ -142,6 +142,26 @@ def remover_do_carrinho(request, item_id):
     
     item.delete()
     return redirect('ver_carrinho')  # Mantido conforme sua solicitação
+
+def gerar_qrcode_pix(request, pedido_id):
+    pedido = get_object_or_404(Pedido, id=pedido_id)
+    
+    sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+    payment_response = sdk.payment().get(pedido.codigo_transacao)
+    
+    if payment_response['status'] == 200:
+        payment = payment_response['response']
+        qr_code = payment['point_of_interaction']['transaction_data']['qr_code']
+        qr_code_base64 = payment['point_of_interaction']['transaction_data']['qr_code_base64']
+        
+        return render(request, 'cardapio/qr_code.html', {
+            'pedido': pedido,
+            'qr_code': qr_code,
+            'qr_code_base64': qr_code_base64
+        })
+    
+    messages.error(request, "Erro ao gerar QR Code")
+    return redirect('pagamento_falhou', pedido_id=pedido.id)
 @login_required
 @transaction.atomic
 def finalizar_compra(request):
@@ -230,48 +250,45 @@ def finalizar_compra(request):
 def webhook_mercadopago(request):
     if request.method == 'POST':
         try:
-            payload = json.loads(request.body)
-            logger.info(f"Webhook recebido: {payload}")
+            data = json.loads(request.body)
+            logger.info(f"Notificação recebida: {data}")
 
-            # Verificar se é uma notificação de pagamento
-            if payload.get('type') == 'payment':
-                payment_id = payload['data']['id']
-                
-                # Obter detalhes do pagamento
-                sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
-                payment_response = sdk.payment().get(payment_id)
-                
-                if payment_response['status'] == 200:
-                    payment = payment_response['response']
-                    external_reference = payment.get('external_reference')
+            # Para notificações do tipo payment
+            if data.get('type') == 'payment':
+                payment_id = data.get('data', {}).get('id')
+                if payment_id:
+                    sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+                    payment = sdk.payment().get(payment_id)
                     
-                    if external_reference:
-                        try:
-                            pedido = Pedido.objects.get(id=external_reference)
-                            
-                            # Atualizar status do pedido
-                            if payment['status'] == 'approved':
-                                pedido.status = 'paid'
-                            elif payment['status'] == 'pending':
-                                pedido.status = 'pending'
-                            elif payment['status'] == 'rejected':
-                                pedido.status = 'failed'
-                            
-                            pedido.save()
-                            return HttpResponse(status=200)
+                    if payment['status'] == 200:
+                        payment_data = payment['response']
+                        pedido_id = payment_data.get('external_reference')
                         
-                        except Pedido.DoesNotExist:
-                            logger.error(f"Pedido não encontrado: {external_reference}")
-                            return HttpResponse(status=404)
-                
-                logger.error(f"Erro ao obter pagamento: {payment_response}")
-                return HttpResponse(status=400)
+                        if pedido_id:
+                            try:
+                                pedido = Pedido.objects.get(id=pedido_id)
+                                
+                                # Atualizar status conforme resposta do Mercado Pago
+                                if payment_data['status'] == 'approved':
+                                    pedido.status = 'paid'
+                                    pedido.save()
+                                    # Enviar e-mail de confirmação (opcional)
+                                    # enviar_email_confirmacao(pedido)
+                                elif payment_data['status'] == 'pending':
+                                    pedido.status = 'pending'
+                                    pedido.save()
+                                elif payment_data['status'] in ['cancelled', 'rejected']:
+                                    pedido.status = 'failed'
+                                    pedido.save()
+                                
+                                return HttpResponse(status=200)
+                            
+                            except Pedido.DoesNotExist:
+                                logger.error(f"Pedido {pedido_id} não encontrado")
+                                return HttpResponse(status=404)
             
             return HttpResponse(status=200)
         
-        except json.JSONDecodeError:
-            logger.error("Payload JSON inválido")
-            return HttpResponse(status=400)
         except Exception as e:
             logger.error(f"Erro no webhook: {str(e)}")
             return HttpResponse(status=500)
@@ -305,3 +322,36 @@ def pagamento_pendente(request, pedido_id):
     pedido.status = 'pending'
     pedido.save()
     return render(request, 'cardapio/pagamento_pendente.html', {'pedido': pedido})
+from django.http import JsonResponse
+
+@csrf_exempt
+def verificar_status_pagamento(request, pedido_id):
+    if request.method == 'GET':
+        try:
+            pedido = Pedido.objects.get(id=pedido_id)
+            
+            # Se já tiver status, retornar
+            if pedido.status in ['paid', 'failed']:
+                return JsonResponse({'status': pedido.status})
+            
+            # Consultar Mercado Pago se ainda estiver pendente
+            sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+            payment = sdk.payment().get(pedido.codigo_transacao)
+            
+            if payment['status'] == 200:
+                status_mp = payment['response']['status']
+                if status_mp == 'approved':
+                    pedido.status = 'paid'
+                    pedido.save()
+                elif status_mp in ['cancelled', 'rejected']:
+                    pedido.status = 'failed'
+                    pedido.save()
+                
+                return JsonResponse({'status': pedido.status})
+            
+            return JsonResponse({'status': pedido.status})
+        
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Método não permitido'}, status=405)
