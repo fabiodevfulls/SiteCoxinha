@@ -165,7 +165,7 @@ def gerar_qrcode_pix(request, pedido_id):
 @login_required
 def finalizar_compra(request):
     try:
-        # Obter itens do carrinho (seu código existente)
+        # 1. Obter itens do carrinho
         if request.user.is_authenticated:
             carrinho = ItemCarrinho.objects.filter(usuario=request.user)
         else:
@@ -176,16 +176,17 @@ def finalizar_compra(request):
             messages.error(request, "Seu carrinho está vazio")
             return redirect('ver_carrinho')
 
+        # 2. Calcular total
         total = sum(item.subtotal() for item in carrinho)
 
-        # Criar pedido
+        # 3. Criar pedido no banco de dados
         pedido = Pedido.objects.create(
             usuario=request.user if request.user.is_authenticated else None,
             total=total,
             status='pending',
         )
 
-        # Criar itens do pedido (seu código existente)
+        # 4. Criar itens do pedido
         for item in carrinho:
             PedidoItem.objects.create(
                 pedido=pedido,
@@ -194,46 +195,49 @@ def finalizar_compra(request):
                 preco_unitario=item.produto.preco
             )
 
-        # Configurar SDK do Mercado Pago para PIX
+        # 5. Configurar pagamento PIX
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
-
-        # Criar pagamento PIX diretamente (não preferência)
+        
         payment_data = {
             "transaction_amount": float(total),
             "payment_method_id": "pix",
             "payer": {
                 "email": request.user.email if request.user.is_authenticated else "cliente@example.com",
                 "first_name": request.user.first_name if request.user.is_authenticated else "Cliente",
-                "last_name": request.user.last_name if request.user.is_authenticated else "Anônimo",
             },
             "notification_url": request.build_absolute_uri(reverse('webhook_mercadopago')),
-            "description": f"Pedido #{pedido.id} - Lanchonete Delícia de Coxinha",
+            "description": f"Pedido #{pedido.id}",
             "external_reference": str(pedido.id),
         }
 
         payment_response = sdk.payment().create(payment_data)
 
+        # 6. Verificar resposta do Mercado Pago
         if payment_response['status'] not in [200, 201]:
             error_msg = payment_response.get('response', {}).get('message', 'Erro desconhecido')
             raise Exception(f"Erro ao criar pagamento PIX: {error_msg}")
 
         payment_info = payment_response['response']
         
-        # Atualizar pedido com dados do PIX
+        # 7. Atualizar pedido com dados do pagamento
         pedido.codigo_transacao = payment_info['id']
         pedido.save()
 
-        # Limpar carrinho
+        # 8. Limpar carrinho
         carrinho.delete()
 
-        # Redirecionar para a página de QR Code com os dados do PIX
-        return redirect('mostrar_qrcode', pedido_id=pedido.id)
+        # 9. Renderizar template com QR Code (ALTERAÇÃO IMPORTANTE)
+        return render(request, 'cardapio/qr_code.html', {
+            'pedido': pedido,
+            'qr_code': payment_info['point_of_interaction']['transaction_data']['qr_code'],
+            'qr_code_base64': payment_info['point_of_interaction']['transaction_data']['qr_code_base64'],
+            'pix_data': payment_info['point_of_interaction']['transaction_data']
+        })
 
     except Exception as e:
-        logger.error(f"Erro no checkout PIX: {str(e)}", exc_info=True)
-        messages.error(request, f"Erro ao processar pagamento PIX: {str(e)}")
+        logger.error(f"Erro no checkout: {str(e)}", exc_info=True)
+        messages.error(request, f"Erro ao processar pagamento: {str(e)}")
         return redirect('ver_carrinho')
-    
 
 def mostrar_qrcode(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
