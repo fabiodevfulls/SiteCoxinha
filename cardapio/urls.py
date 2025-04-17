@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from .views import CustomLoginView, CadastroView, custom_logout, finalizar_compra, webhook_mercadopago
+from django.views.static import serve
 
 urlpatterns = [
     path('', views.ProdutoListView.as_view(), name='menu'),
@@ -15,6 +16,7 @@ urlpatterns = [
     path('meus-pedidos/', views.meus_pedidos, name='meus_pedidos'),
     path('carrinho/aumentar/<int:item_id>/', views.aumentar_quantidade, name='aumentar_quantidade'),
     path('carrinho/diminuir/<int:item_id>/', views.diminuir_quantidade, name='diminuir_quantidade'),
+    path('favicon.ico', serve, {'path': 'img/favicon.ico'}),
 
 
     

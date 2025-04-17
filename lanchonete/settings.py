@@ -1,7 +1,10 @@
 import os
 import sys
 from pathlib import Path
+from urllib import request
+from django.http.request import validate_host
 from dotenv import load_dotenv
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
@@ -11,7 +14,21 @@ load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'chave-insegura-para-dev')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+
+# settings.py
+ALLOWED_HOSTS = ['*'] if DEBUG else [
+    'lanchonetedeliciadecoxinha.kesug.com',
+    'www.lanchonetedeliciadecoxinha.kesug.com',
+    '.onrender.com'
+]
+
+# Adicione isto se usar Render:
+if 'RENDER' in os.environ:
+    RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+    if RENDER_EXTERNAL_HOSTNAME:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -98,8 +115,13 @@ MERCADOPAGO = {
     'ACCESS_TOKEN': os.getenv('MERCADOPAGO_ACCESS_TOKEN'),
     'PUBLIC_KEY': os.getenv('MERCADOPAGO_PUBLIC_KEY'),
     'SANDBOX_MODE': os.getenv('SANDBOX_MODE', 'False') == 'True',
-    'AUTO_RETURN': True,
+    'AUTO_RETURN': 'approved',
     'WEBHOOK_URL': os.getenv('WEBHOOK_URL'),
     'NOTIFICATION_URL': os.getenv('NOTIFICATION_URL')
 
 }
+# Configurações de segurança para o webhook
+CSRF_TRUSTED_ORIGINS = [
+    'https://api.mercadopago.com',
+    'https://www.mercadopago.com.br'
+]

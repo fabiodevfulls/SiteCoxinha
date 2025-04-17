@@ -143,47 +143,56 @@ def remover_do_carrinho(request, item_id):
     item.delete()
     return redirect('ver_carrinho')  # Mantido conforme sua solicitação
 @login_required
+@transaction.atomic
 def finalizar_compra(request):
     try:
+        # Obter itens do carrinho
         if request.user.is_authenticated:
             carrinho = ItemCarrinho.objects.filter(usuario=request.user)
         else:
             session_key = request.session.session_key
             carrinho = ItemCarrinho.objects.filter(session_key=session_key)
 
+        if not carrinho.exists():
+            messages.error(request, "Seu carrinho está vazio")
+            return redirect('ver_carrinho')
+
         total = sum(item.subtotal() for item in carrinho)
 
-        # Cria o pedido antes da preferência
+        # Criar pedido
         pedido = Pedido.objects.create(
-            usuario=request.user,
+            usuario=request.user if request.user.is_authenticated else None,
             total=total,
-            status='pending',  # Mantenha o status como 'pending' até a finalização
+            status='pending',
         )
 
-        # Cria os itens do pedido
-        pedido_itens = []
+        # Criar itens do pedido
         for item in carrinho:
-            pedido_itens.append(PedidoItem(
+            PedidoItem.objects.create(
                 pedido=pedido,
                 produto=item.produto,
                 quantidade=item.quantidade,
                 preco_unitario=item.produto.preco
-            ))
-        PedidoItem.objects.bulk_create(pedido_itens)
+            )
 
+        # Configurar SDK do Mercado Pago
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
 
-        # Agora que temos o ID do pedido, podemos usá-lo nos back_urls
+        # Criar preferência de pagamento
         preference_data = {
             "items": [{
-                "title": f"Pedido - {request.user.username}",
+                "title": f"Pedido #{pedido.id}",
                 "quantity": 1,
                 "unit_price": float(total),
                 "currency_id": "BRL"
             }],
             "payer": {
-                "name": request.user.username,
-                "email": request.user.email
+                "name": request.user.get_full_name() if request.user.is_authenticated else "Cliente",
+                "email": request.user.email if request.user.is_authenticated else "cliente@example.com",
+            },
+            "payment_methods": {
+                "excluded_payment_types": [{"id": "credit_card"}, {"id": "debit_card"}],
+                "default_payment_method_id": "pix",
             },
             "back_urls": {
                 "success": request.build_absolute_uri(reverse('pagamento_aprovado', args=[pedido.id])),
@@ -191,67 +200,108 @@ def finalizar_compra(request):
                 "pending": request.build_absolute_uri(reverse('pagamento_pendente', args=[pedido.id]))
             },
             "auto_return": "approved",
-            "payment_methods": {
-                "excluded_payment_types": [{"id": "credit_card"}],
-                "default_payment_method": "pix"  # Defina o método de pagamento como PIX
-            }
+            "notification_url": request.build_absolute_uri(reverse('webhook_mercadopago')),
+            "statement_descriptor": "LANCHONETE COXINHA"
         }
 
-        # Cria a preferência no Mercado Pago
         preference_response = sdk.preference().create(preference_data)
+        
+        if preference_response['status'] not in [200, 201]:
+            error_msg = preference_response.get('response', {}).get('message', 'Erro desconhecido')
+            raise Exception(f"Erro ao criar preferência: {error_msg}")
 
-        if 'status' not in preference_response or preference_response['status'] not in [200, 201]:
-            raise Exception("Erro ao criar preferência no Mercado Pago")
-
-        # Atualiza o código da transação agora que temos a preferência
-        pedido.codigo_transacao = preference_response["response"]["id"]
+        # Atualizar pedido com dados do pagamento
+        pedido.codigo_transacao = preference_response['response']['id']
         pedido.save()
 
-        # Limpa o carrinho
+        # Limpar carrinho
         carrinho.delete()
 
-        # Redireciona para o Mercado Pago (sandbox ou produção)
-        return redirect(preference_response["response"]["sandbox_init_point"])
+        # Redirecionar para o checkout
+        if settings.MERCADOPAGO['SANDBOX_MODE']:
+            return redirect(preference_response['response']['sandbox_init_point'])
+        return redirect(preference_response['response']['init_point'])
 
     except Exception as e:
-        logger.error(f"Erro no processo de pagamento: {str(e)}", exc_info=True)
+        logger.error(f"Erro no checkout: {str(e)}", exc_info=True)
         messages.error(request, f"Erro ao processar pagamento: {str(e)}")
         return redirect('ver_carrinho')
-
 @csrf_exempt
 def webhook_mercadopago(request):
-    if request.method == 'GET':
-        return HttpResponse("🔧 Webhook pronto para receber notificações.", status=200)
-
     if request.method == 'POST':
         try:
             payload = json.loads(request.body)
-            logger.info("🔔 Webhook recebido: %s", payload)
+            logger.info(f"Webhook recebido: {payload}")
 
-            pagamento_status = payload.get('status', None)
-            pedido_id = payload.get('data', {}).get('id', None)
-            if pedido_id:
-                pedido = Pedido.objects.get(id=pedido_id)
-                if pagamento_status == "approved":
-                    pedido.status = "paid"
-                    pedido.save()
-
+            # Verificar se é uma notificação de pagamento
+            if payload.get('type') == 'payment':
+                payment_id = payload['data']['id']
+                
+                # Obter detalhes do pagamento
+                sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+                payment_response = sdk.payment().get(payment_id)
+                
+                if payment_response['status'] == 200:
+                    payment = payment_response['response']
+                    external_reference = payment.get('external_reference')
+                    
+                    if external_reference:
+                        try:
+                            pedido = Pedido.objects.get(id=external_reference)
+                            
+                            # Atualizar status do pedido
+                            if payment['status'] == 'approved':
+                                pedido.status = 'paid'
+                            elif payment['status'] == 'pending':
+                                pedido.status = 'pending'
+                            elif payment['status'] == 'rejected':
+                                pedido.status = 'failed'
+                            
+                            pedido.save()
+                            return HttpResponse(status=200)
+                        
+                        except Pedido.DoesNotExist:
+                            logger.error(f"Pedido não encontrado: {external_reference}")
+                            return HttpResponse(status=404)
+                
+                logger.error(f"Erro ao obter pagamento: {payment_response}")
+                return HttpResponse(status=400)
+            
             return HttpResponse(status=200)
-        except Exception as e:
-            logger.error("Erro no webhook: %s", str(e))
+        
+        except json.JSONDecodeError:
+            logger.error("Payload JSON inválido")
             return HttpResponse(status=400)
-
+        except Exception as e:
+            logger.error(f"Erro no webhook: {str(e)}")
+            return HttpResponse(status=500)
+    
     return HttpResponse(status=405)
-
 
 def pagamento_aprovado(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
-    return render(request, 'cardapio/pagamento_aprovado.html', {'pedido': pedido})
+    
+    # Verificar status real no Mercado Pago
+    sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+    payment_info = sdk.payment().get(pedido.codigo_transacao)
+    
+    if payment_info['status'] == 200:
+        pedido.status = payment_info['response']['status']
+        pedido.save()
+    
+    return render(request, 'cardapio/pagamento_aprovado.html', {
+        'pedido': pedido,
+        'payment_info': payment_info.get('response', {})
+    })
 
 def pagamento_falhou(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
+    pedido.status = 'failed'
+    pedido.save()
     return render(request, 'cardapio/pagamento_falhou.html', {'pedido': pedido})
 
 def pagamento_pendente(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
+    pedido.status = 'pending'
+    pedido.save()
     return render(request, 'cardapio/pagamento_pendente.html', {'pedido': pedido})
