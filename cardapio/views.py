@@ -163,10 +163,9 @@ def gerar_qrcode_pix(request, pedido_id):
     messages.error(request, "Erro ao gerar QR Code")
     return redirect('pagamento_falhou', pedido_id=pedido.id)
 @login_required
-@transaction.atomic
 def finalizar_compra(request):
     try:
-        # Obter itens do carrinho
+        # Obter itens do carrinho (seu código existente)
         if request.user.is_authenticated:
             carrinho = ItemCarrinho.objects.filter(usuario=request.user)
         else:
@@ -186,7 +185,7 @@ def finalizar_compra(request):
             status='pending',
         )
 
-        # Criar itens do pedido
+        # Criar itens do pedido (seu código existente)
         for item in carrinho:
             PedidoItem.objects.create(
                 pedido=pedido,
@@ -195,57 +194,74 @@ def finalizar_compra(request):
                 preco_unitario=item.produto.preco
             )
 
-        # Configurar SDK do Mercado Pago
+        # Configurar SDK do Mercado Pago para PIX
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
 
-        # Criar preferência de pagamento
-        preference_data = {
-            "items": [{
-                "title": f"Pedido #{pedido.id}",
-                "quantity": 1,
-                "unit_price": float(total),
-                "currency_id": "BRL"
-            }],
+        # Criar pagamento PIX diretamente (não preferência)
+        payment_data = {
+            "transaction_amount": float(total),
+            "payment_method_id": "pix",
             "payer": {
-                "name": request.user.get_full_name() if request.user.is_authenticated else "Cliente",
                 "email": request.user.email if request.user.is_authenticated else "cliente@example.com",
+                "first_name": request.user.first_name if request.user.is_authenticated else "Cliente",
+                "last_name": request.user.last_name if request.user.is_authenticated else "Anônimo",
             },
-            "payment_methods": {
-                "excluded_payment_types": [{"id": "credit_card"}, {"id": "debit_card"}],
-                "default_payment_method_id": "pix",
-            },
-            "back_urls": {
-                "success": request.build_absolute_uri(reverse('pagamento_aprovado', args=[pedido.id])),
-                "failure": request.build_absolute_uri(reverse('pagamento_falhou', args=[pedido.id])),
-                "pending": request.build_absolute_uri(reverse('pagamento_pendente', args=[pedido.id]))
-            },
-            "auto_return": "approved",
             "notification_url": request.build_absolute_uri(reverse('webhook_mercadopago')),
-            "statement_descriptor": "LANCHONETE COXINHA"
+            "description": f"Pedido #{pedido.id} - Lanchonete Delícia de Coxinha",
+            "external_reference": str(pedido.id),
         }
 
-        preference_response = sdk.preference().create(preference_data)
-        
-        if preference_response['status'] not in [200, 201]:
-            error_msg = preference_response.get('response', {}).get('message', 'Erro desconhecido')
-            raise Exception(f"Erro ao criar preferência: {error_msg}")
+        payment_response = sdk.payment().create(payment_data)
 
-        # Atualizar pedido com dados do pagamento
-        pedido.codigo_transacao = preference_response['response']['id']
+        if payment_response['status'] not in [200, 201]:
+            error_msg = payment_response.get('response', {}).get('message', 'Erro desconhecido')
+            raise Exception(f"Erro ao criar pagamento PIX: {error_msg}")
+
+        payment_info = payment_response['response']
+        
+        # Atualizar pedido com dados do PIX
+        pedido.codigo_transacao = payment_info['id']
         pedido.save()
 
         # Limpar carrinho
         carrinho.delete()
 
-        # Redirecionar para o checkout
-        if settings.MERCADOPAGO['SANDBOX_MODE']:
-            return redirect(preference_response['response']['sandbox_init_point'])
-        return redirect(preference_response['response']['init_point'])
+        # Redirecionar para a página de QR Code com os dados do PIX
+        return redirect('mostrar_qrcode', pedido_id=pedido.id)
 
     except Exception as e:
-        logger.error(f"Erro no checkout: {str(e)}", exc_info=True)
-        messages.error(request, f"Erro ao processar pagamento: {str(e)}")
+        logger.error(f"Erro no checkout PIX: {str(e)}", exc_info=True)
+        messages.error(request, f"Erro ao processar pagamento PIX: {str(e)}")
         return redirect('ver_carrinho')
+    
+
+def mostrar_qrcode(request, pedido_id):
+    pedido = get_object_or_404(Pedido, id=pedido_id)
+    
+    sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+    payment_response = sdk.payment().get(pedido.codigo_transacao)
+    
+    if payment_response['status'] == 200:
+        payment_data = payment_response['response']
+        
+        # Verificar se é PIX e tem dados de QR Code
+        if (payment_data['payment_method_id'] == 'pix' and 
+            'point_of_interaction' in payment_data and 
+            'transaction_data' in payment_data['point_of_interaction']):
+            
+            qr_code = payment_data['point_of_interaction']['transaction_data']['qr_code']
+            qr_code_base64 = payment_data['point_of_interaction']['transaction_data']['qr_code_base64']
+            
+            return render(request, 'cardapio/qr_code.html', {
+                'pedido': pedido,
+                'qr_code': qr_code,
+                'qr_code_base64': qr_code_base64,
+                'pix_data': payment_data['point_of_interaction']['transaction_data']
+            })
+    
+    messages.error(request, "Não foi possível gerar o QR Code PIX")
+    return redirect('pagamento_falhou', pedido_id=pedido.id)
+    
 @csrf_exempt
 def webhook_mercadopago(request):
     if request.method == 'POST':
