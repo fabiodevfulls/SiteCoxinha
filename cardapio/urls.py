@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import CustomLoginView, CadastroView, custom_logout, finalizar_compra, verificar_status_pagamento, webhook_mercadopago
+from .views import CustomLoginView, CadastroView, custom_logout, finalizar_compra, verificar_status_pagamento, webhook_mercadopago, mostrar_qrcode
 from django.views.static import serve
 
 urlpatterns = [
@@ -18,6 +18,7 @@ urlpatterns = [
     path('carrinho/diminuir/<int:item_id>/', views.diminuir_quantidade, name='diminuir_quantidade'),
     path('favicon.ico', serve, {'path': 'img/favicon.ico'}),
     path('api/verificar-status/<int:pedido_id>/', verificar_status_pagamento, name='verificar_status_pagamento'),
+    path('pagamento/pix/<int:pedido_id>/', mostrar_qrcode, name='mostrar_qrcode'),
 
 
     
