@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib import request
 from django.http.request import validate_host
 from dotenv import load_dotenv
-
+print("MERCADOPAGO_ACCESS_TOKEN:", os.getenv('MERCADOPAGO_ACCESS_TOKEN'))
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
