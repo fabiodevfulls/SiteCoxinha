@@ -25,10 +25,22 @@
                                    class="form-control text-center" 
                                    id="pix-code" 
                                    value="{{ qr_code }}" 
-                                   readonly>
-                            <button class="btn btn-outline-primary" onclick="copiarPixCode()">
-                                <i class="bi bi-clipboard"></i> Copiar
+                                   readonly
+                                   aria-label="Código PIX para copiar">
+                            <button class="btn btn-outline-primary" onclick="copiarPixCode(this)" aria-label="Copiar código PIX">
+                                <i class="bi bi-clipboard"></i> <span class="btn-text">Copiar</span>
                             </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar (Novo) -->
+                    <div class="progress my-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" 
+                             style="width: 100%"
+                             aria-valuenow="100" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
                         </div>
                     </div>
                     
@@ -45,7 +57,7 @@
                     </div>
                     
                     <!-- Status do Pagamento -->
-                    <div id="payment-status" class="my-4">
+                    <div id="payment-status" class="my-4" aria-live="polite" aria-atomic="true">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Aguardando pagamento...</span>
                         </div>
@@ -68,21 +80,24 @@
 </div>
 
 <input type="hidden" id="pedido-id" value="{{ pedido.id }}">
+{% csrf_token %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Função para copiar código PIX
-function copiarPixCode() {
+// Função para copiar código PIX com melhor feedback
+function copiarPixCode(button) {
     const pixCode = document.getElementById('pix-code');
     pixCode.select();
     document.execCommand('copy');
     
-    // Feedback visual
-    const originalText = pixCode.value;
-    pixCode.value = "Copiado!";
+    // Feedback visual melhorado
+    const btnText = button.querySelector('.btn-text');
+    const originalText = btnText.textContent;
+    btnText.textContent = "Copiado!";
+    
     setTimeout(() => {
-        pixCode.value = originalText;
+        btnText.textContent = originalText;
     }, 2000);
 }
 
@@ -90,35 +105,64 @@ function copiarPixCode() {
 function verificarStatusPagamento() {
     const pedidoId = document.getElementById('pedido-id').value;
     const statusContainer = document.getElementById('payment-status');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
+    let tentativas = 0;
+    const maxTentativas = 12; // 1 minuto (5s x 12)
+
     const interval = setInterval(() => {
-        fetch(`/api/verificar-status/${pedidoId}/`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'approved') {
-                    clearInterval(interval);
-                    statusContainer.innerHTML = `
-                        <div class="alert alert-success">
-                            <h4><i class="bi bi-check-circle-fill"></i> Pagamento Confirmado!</h4>
-                            <p>Redirecionando para a página de confirmação...</p>
-                        </div>
-                    `;
-                    setTimeout(() => {
-                        window.location.href = `/pagamento/aprovado/${pedidoId}/`;
-                    }, 3000);
-                } else if (data.status === 'rejected') {
-                    clearInterval(interval);
-                    statusContainer.innerHTML = `
-                        <div class="alert alert-danger">
-                            <h4><i class="bi bi-exclamation-circle-fill"></i> Pagamento Não Aprovado</h4>
-                            <p>Por favor, tente novamente ou escolha outra forma de pagamento.</p>
-                        </div>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-            });
+        if(tentativas >= maxTentativas) {
+            clearInterval(interval);
+            statusContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-clock-history"></i>
+                    Tempo esgotado! O pedido será cancelado automaticamente.
+                </div>
+            `;
+            return;
+        }
+        tentativas++;
+        
+        fetch(`/api/verificar-status/${pedidoId}/`, {
+            headers: {
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(response => {
+            if(!response.ok) throw new Error('Erro na rede');
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'approved') {
+                clearInterval(interval);
+                statusContainer.innerHTML = `
+                    <div class="alert alert-success">
+                        <h4><i class="bi bi-check-circle-fill"></i> Pagamento Confirmado!</h4>
+                        <p>Redirecionando para a página de confirmação...</p>
+                    </div>
+                `;
+                setTimeout(() => {
+                    window.location.href = `/pagamento/aprovado/${pedidoId}/`;
+                }, 3000);
+            } else if (data.status === 'rejected') {
+                clearInterval(interval);
+                statusContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h4><i class="bi bi-exclamation-circle-fill"></i> Pagamento Não Aprovado</h4>
+                        <p>Por favor, tente novamente ou escolha outra forma de pagamento.</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            statusContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Erro ao verificar status. Tentando novamente... (${tentativas}/${maxTentativas})
+                </div>
+            `;
+        });
     }, 5000); // Verificar a cada 5 segundos
 }
 
