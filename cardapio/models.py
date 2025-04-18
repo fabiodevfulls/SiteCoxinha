@@ -1,9 +1,11 @@
+import json
 from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from decimal import Decimal
+import hashlib
 
 class Usuario(AbstractUser):
     endereco = models.TextField(blank=True)
@@ -98,8 +100,8 @@ class PedidoItem(models.Model):
     
 
 
-import hashlib
-from django.db import models
+
+
 
 class PaymentLog(models.Model):
     payment_id = models.CharField(max_length=255, unique=True)
