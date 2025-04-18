@@ -1,0 +1,90 @@
+{% extends 'cardapio/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h2 class="mb-4">Pagamento via PIX</h2>
+            
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <!-- QR Code -->
+                    <div class="mb-4">
+                        <img src="data:image/png;base64,{{ qr_code_base64 }}" 
+                             alt="QR Code PIX" 
+                             class="img-fluid mx-auto d-block"
+                             style="max-width: 300px;">
+                    </div>
+                    
+                    <!-- Código PIX -->
+                    <div class="mb-4">
+                        <p class="text-muted">Código PIX (copie e cole):</p>
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control text-center" 
+                                   id="pix-code" 
+                                   value="{{ qr_code }}" 
+                                   readonly>
+                            <button class="btn btn-outline-primary" onclick="copiarCodigoPix()">
+                                Copiar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações -->
+                    <div class="alert alert-info text-start">
+                        <h5>Instruções:</h5>
+                        <ol>
+                            <li>Abra seu app de pagamentos</li>
+                            <li>Selecione PIX</li>
+                            <li>Escaneie o QR Code ou cole o código</li>
+                            <li>Confirme o pagamento de R$ {{ pedido.total|floatformat:2 }}</li>
+                        </ol>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div id="payment-status">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p>Aguardando confirmação...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Copiar código PIX
+function copiarCodigoPix() {
+    const input = document.getElementById('pix-code');
+    input.select();
+    document.execCommand('copy');
+    
+    // Feedback
+    const btn = event.target;
+    btn.innerHTML = 'Copiado!';
+    setTimeout(() => {
+        btn.innerHTML = 'Copiar';
+    }, 2000);
+}
+
+// Verificar status
+function verificarStatus() {
+    fetch("{% url 'verificar_status' pedido.id %}")
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'paid') {
+                window.location.href = "{% url 'pagamento_aprovado' pedido.id %}";
+            } else if (data.status === 'failed') {
+                window.location.href = "{% url 'pagamento_falhou' pedido.id %}";
+            } else {
+                setTimeout(verificarStatus, 5000);
+            }
+        });
+}
+
+// Iniciar verificação
+document.addEventListener('DOMContentLoaded', verificarStatus);
+</script>
+{% endblock %}

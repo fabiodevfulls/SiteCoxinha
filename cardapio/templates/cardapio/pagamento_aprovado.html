@@ -1,8 +1,14 @@
 {% extends 'cardapio/base.html' %}
+
 {% block content %}
-<div class="container text-center mt-5">
-    <h2 class="text-success">Pagamento Aprovado!</h2>
-    <p>Seu pedido foi recebido com sucesso.</p>
-    <a href="{% url 'menu' %}" class="btn btn-success mt-3">Voltar ao Cardápio</a>
+<div class="container my-5 text-center">
+    <div class="alert alert-success">
+        <h2><i class="bi bi-check-circle-fill"></i> Pagamento Aprovado!</h2>
+        <p>Seu pedido #{{ pedido.id }} foi confirmado.</p>
+        <p>Valor: R$ {{ pedido.total|floatformat:2 }}</p>
+        <a href="{% url 'meus_pedidos' %}" class="btn btn-primary">
+            Ver Meus Pedidos
+        </a>
+    </div>
 </div>
 {% endblock %}
