@@ -111,6 +111,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Configurações de data/hora
 TIME_ZONE = 'America/Sao_Paulo'
 USE_TZ = True
+# Arquivos de mídia (upload de imagens dos produtos, por exemplo)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Arquivos estáticos
 STATIC_URL = '/static/'
