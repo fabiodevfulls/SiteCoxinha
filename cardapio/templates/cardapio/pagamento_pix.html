@@ -7,6 +7,7 @@
         <div class="col-md-8 text-center">
             <h2 class="mb-4">Pagamento via PIX</h2>
             
+            {% if qr_code_base64 %}
             <div class="card shadow-sm">
                 <div class="card-body">
                     <!-- QR Code -->
@@ -24,7 +25,7 @@
                             <input type="text" 
                                    class="form-control text-center" 
                                    id="pix-code" 
-                                   value="{{ qr_code }}" 
+                                   value="{{ pix_data.qr_code }}" 
                                    readonly>
                             <button class="btn btn-outline-primary" onclick="copiarCodigoPix()">
                                 Copiar
@@ -41,18 +42,45 @@
                             <li>Escaneie o QR Code ou cole o código</li>
                             <li>Confirme o pagamento de R$ {{ pedido.total|floatformat:2 }}</li>
                         </ol>
+                        <p class="mb-0">Tempo restante: <span id="countdown">{{ minutes_left }}</span> minutos</p>
                     </div>
                     
                     <!-- Status -->
                     <div id="payment-status">
                         <div class="spinner-border text-primary" role="status"></div>
-                        <p>Aguardando confirmação...</p>
+                        <p class="mt-2">Aguardando confirmação...</p>
                     </div>
                 </div>
             </div>
+            {% else %}
+            <div class="alert alert-danger">
+                Não foi possível gerar o QR Code. Por favor, tente novamente.
+                <a href="{% url 'ver_carrinho' %}" class="alert-link">Voltar ao carrinho</a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
+
+<style>
+    #payment-status {
+        transition: all 0.3s ease;
+        min-height: 100px;
+    }
+    .alert-warning {
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+    }
+    .spinner-border {
+        width: 3rem; 
+        height: 3rem;
+    }
+    #pix-code {
+        font-family: monospace;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+    }
+</style>
 
 <script>
 // Copiar código PIX
@@ -61,30 +89,87 @@ function copiarCodigoPix() {
     input.select();
     document.execCommand('copy');
     
-    // Feedback
+    // Feedback visual
     const btn = event.target;
-    btn.innerHTML = 'Copiado!';
+    btn.textContent = 'Copiado!';
+    btn.classList.remove('btn-outline-primary');
+    btn.classList.add('btn-success');
+    
     setTimeout(() => {
-        btn.innerHTML = 'Copiar';
+        btn.textContent = 'Copiar';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-primary');
     }, 2000);
 }
 
-// Verificar status
+// Contador regressivo
+function atualizarContador() {
+    const elemento = document.getElementById('countdown');
+    let minutos = parseInt(elemento.textContent);
+    
+    if (minutos > 0) {
+        minutos -= 1;
+        elemento.textContent = minutos;
+        setTimeout(atualizarContador, 60000);
+    } else {
+        document.getElementById('payment-status').innerHTML = `
+            <div class="alert alert-warning">
+                Tempo esgotado! <a href="{% url 'ver_carrinho' %}">Tente novamente</a>
+            </div>
+        `;
+    }
+}
+
+// Verificar status do pagamento
 function verificarStatus() {
-    fetch("{% url 'verificar_status' pedido.id %}")
-        .then(response => response.json())
+    fetch("{% url 'verificar_status_pagamento' pedido.id %}")
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erro: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log("Status atual:", data.status);
+            
             if (data.status === 'paid') {
                 window.location.href = "{% url 'pagamento_aprovado' pedido.id %}";
-            } else if (data.status === 'failed') {
+            } 
+            else if (data.status === 'failed' || data.status === 'expired') {
                 window.location.href = "{% url 'pagamento_falhou' pedido.id %}";
-            } else {
+            }
+            else {
+                // Atualiza interface com status atual
+                document.getElementById('payment-status').innerHTML = `
+                    <div class="d-flex flex-column align-items-center">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <p>Status: ${data.status || 'pending'}</p>
+                        <p class="small text-muted">Atualizando em 5 segundos...</p>
+                    </div>
+                `;
                 setTimeout(verificarStatus, 5000);
             }
+        })
+        .catch(error => {
+            console.error("Erro na verificação:", error);
+            document.getElementById('payment-status').innerHTML = `
+                <div class="alert alert-warning">
+                    <p>Erro ao verificar status</p>
+                    <button onclick="verificarStatus()" class="btn btn-sm btn-warning">
+                        Tentar novamente
+                    </button>
+                </div>
+            `;
         });
 }
 
-// Iniciar verificação
-document.addEventListener('DOMContentLoaded', verificarStatus);
+// Iniciar processos quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+    // Iniciar contador
+    setTimeout(atualizarContador, 60000);
+    
+    // Iniciar verificação de status
+    verificarStatus();
+});
 </script>
 {% endblock %}

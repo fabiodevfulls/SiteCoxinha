@@ -374,10 +374,17 @@ def webhook_mercadopago(request):
 def verificar_status_pagamento(request, pedido_id):
     if request.method == 'GET':
         try:
-            pedido = Pedido.objects.get(id=pedido_id)
-            return JsonResponse({'status': pedido.status})
+            pedido = get_object_or_404(Pedido, id=pedido_id, usuario=request.user)
+            return JsonResponse({
+                'status': pedido.status,
+                'pedido_id': pedido.id,
+                'total': pedido.total
+            })
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            return JsonResponse({
+                'error': str(e),
+                'status': 'error'
+            }, status=500)
     return JsonResponse({'error': 'Método não permitido'}, status=405)
 
 def serve_favicon(request):

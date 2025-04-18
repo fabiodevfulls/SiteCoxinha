@@ -25,6 +25,9 @@
                             {% if item.produto.imagem %}
                             <img src="{{ item.produto.imagem.url }}" alt="{{ item.produto.nome }}" 
                                  class="img-thumbnail me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% else %}
+                            <img src="{% static 'img/produto-sem-imagem.jpg' %}" alt="Sem imagem"
+                                 class="img-thumbnail me-3" style="width: 60px; height: 60px; object-fit: cover;">
                             {% endif %}
                             <span>{{ item.produto.nome }}</span>
                         </div>
@@ -70,10 +73,9 @@
             <i class="bi bi-arrow-left"></i> Continuar Comprando
         </a>
         
-        <!-- Alteração importante: Formulário para POST -->
-        <form action="{% url 'finalizar_compra' %}" method="post" id="form-finalizar-compra">
+        <form id="finalizar-compra-form" method="post" action="{% url 'finalizar_compra' %}">
             {% csrf_token %}
-            <button type="submit" class="btn btn-success">
+            <button type="submit" class="btn btn-success" id="btn-finalizar-compra">
                 <i class="bi bi-check-circle"></i> Finalizar Compra com PIX
             </button>
         </form>
@@ -91,36 +93,58 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Adicione este script para confirmar remoção de itens -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Confirmar antes de remover item
-    const removeButtons = document.querySelectorAll('a[href*="remover_do_carrinho"]');
-    removeButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
+    // Confirmação para remover itens
+    document.querySelectorAll('a[href*="remover_do_carrinho"]').forEach(link => {
+        link.addEventListener('click', function(e) {
             if (!confirm('Tem certeza que deseja remover este item do carrinho?')) {
                 e.preventDefault();
             }
         });
     });
+
+    // Envio AJAX do formulário de finalização
+    const form = document.getElementById('finalizar-compra-form');
+    const btnFinalizar = document.getElementById('btn-finalizar-compra');
     
-    // Enviar o formulário via fetch para redirecionamento após finalização
-    document.getElementById('form-finalizar-compra').addEventListener('submit', function(e) {
-        e.preventDefault(); // Impede o envio padrão do formulário
-        fetch('{% url "finalizar_compra" %}', {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Desabilita o botão para evitar múltiplos cliques
+        btnFinalizar.disabled = true;
+        btnFinalizar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processando...';
+        
+        fetch(form.action, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: new FormData(this) // Envia os dados do formulário
+            body: new URLSearchParams(new FormData(form))
         })
-        .then(response => response.json()) // Espera a resposta do servidor
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro na requisição');
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.redirect_url) { // Se o servidor enviar a URL para redirecionar
-                window.location.href = data.redirect_url; // Redireciona o usuário
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else if (data.error) {
+                alert('Erro: ' + data.error);
+                btnFinalizar.disabled = false;
+                btnFinalizar.innerHTML = '<i class="bi bi-check-circle"></i> Finalizar Compra com PIX';
             }
         })
-        .catch(error => console.error('Erro ao finalizar compra:', error));
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Ocorreu um erro ao processar seu pedido. Por favor, tente novamente.');
+            btnFinalizar.disabled = false;
+            btnFinalizar.innerHTML = '<i class="bi bi-check-circle"></i> Finalizar Compra com PIX';
+        });
     });
 });
 </script>
