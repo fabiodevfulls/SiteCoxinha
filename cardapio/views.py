@@ -187,6 +187,71 @@ def mostrar_qrcode(request, pedido_id):
 
     messages.error(request, "Não foi possível gerar o QR Code PIX")
     return redirect('pagamento_falhou', pedido_id=pedido.id)
+@login_required
+def finalizar_compra(request):
+    try:
+        session_key = request.session.session_key or request.session.create()
+        carrinho = ItemCarrinho.objects.filter(usuario=request.user) if request.user.is_authenticated else ItemCarrinho.objects.filter(session_key=session_key)
+
+        if not carrinho.exists():
+            messages.error(request, "Seu carrinho está vazio")
+            return redirect('ver_carrinho')
+
+        total = sum(item.subtotal() for item in carrinho)
+
+        print("Total do pedido:", total)
+
+        pedido = Pedido.objects.create(
+            usuario=request.user if request.user.is_authenticated else None,
+            total=total,
+            status='pending',
+        )
+
+        for item in carrinho:
+            PedidoItem.objects.create(
+                pedido=pedido,
+                produto=item.produto,
+                quantidade=item.quantidade,
+                preco_unitario=item.produto.preco
+            )
+
+        print("Pedido criado:", pedido.id)
+
+        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+
+        payment_data = {
+            "transaction_amount": float(total),
+            "payment_method_id": "pix",
+            "payer": {
+                "email": request.user.email if request.user.is_authenticated else "cliente@example.com",
+                "first_name": request.user.first_name or "Cliente",
+            },
+            "notification_url": request.build_absolute_uri(reverse('webhook_mercadopago')),
+            "description": f"Pedido #{pedido.id}",
+            "external_reference": str(pedido.id),
+        }
+
+        print("Dados de pagamento:", payment_data)
+
+        payment_response = sdk.payment().create(payment_data)
+
+        print("Resposta do Mercado Pago:", payment_response)
+
+        if payment_response['status'] not in [200, 201]:
+            raise Exception(payment_response.get('response', {}).get('message', 'Erro desconhecido no Mercado Pago'))
+
+        payment_info = payment_response['response']
+        pedido.codigo_transacao = payment_info['id']
+        pedido.save()
+
+        carrinho.delete()
+
+        return JsonResponse({'redirect_url': reverse('mostrar_qrcode', args=[pedido.id])})
+
+    except Exception as e:
+        print("Erro ao finalizar compra:", str(e))  # ou logger.error
+        return JsonResponse({'error': f'Erro ao processar pagamento: {str(e)}'}, status=500)
+
 
 @csrf_exempt
 def webhook_mercadopago(request):
