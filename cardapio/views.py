@@ -1,5 +1,7 @@
 import json
 import logging
+import hashlib
+import hmac
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
@@ -9,11 +11,15 @@ from django.contrib.auth.decorators import login_required
 from django.views.generic import ListView, DetailView, CreateView
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
-from django.db.models import Q
 from django.conf import settings
 import mercadopago
 from .models import Produto, Categoria, ItemCarrinho, Usuario, Pedido, PedidoItem
 from .forms import CadastroForm
+from django.contrib.auth.views import LoginView
+from .models import Produto, Categoria, ItemCarrinho, Pedido, PedidoItem, PaymentLog
+from datetime import datetime, timedelta
+from django.http import HttpResponse, HttpResponseNotFound
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -108,32 +114,54 @@ def meus_pedidos(request):
     return render(request, 'cardapio/pedidos.html', {'pedidos': pedidos})
 
 @login_required
-def finalizar_compra(request):
+def finalizar_compra(request, pedido_id=None):
+    """
+    View aprimorada para:
+    - Reutilização quando precisa gerar novo PIX
+    - Validações adicionais
+    """
     try:
-        carrinho = ItemCarrinho.objects.filter(usuario=request.user)
-        if not carrinho.exists():
-            return JsonResponse({'error': 'Seu carrinho está vazio'}, status=400)
-
-        total = sum(item.subtotal() for item in carrinho)
-
-        pedido = Pedido.objects.create(
-            usuario=request.user,
-            total=total,
-            status='pending'
-        )
-
-        for item in carrinho:
-            PedidoItem.objects.create(
-                pedido=pedido,
-                produto=item.produto,
-                quantidade=item.quantidade,
-                preco_unitario=item.produto.preco
+        if pedido_id:
+            # Fluxo de regeneração de PIX para pedido existente
+            pedido = get_object_or_404(Pedido, id=pedido_id, usuario=request.user)
+            
+            # Verifica se já foi pago
+            if pedido.status == 'paid':
+                return JsonResponse({
+                    'error': 'Este pedido já foi pago',
+                    'redirect_url': reverse('pagamento_aprovado', args=[pedido.id])
+                }, status=400)
+                
+            # Cancela o pagamento anterior no Mercado Pago
+            if pedido.codigo_transacao:
+                sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+                sdk.payment().cancel(pedido.codigo_transacao)
+        else:
+            # Fluxo normal - novo pedido
+            carrinho = ItemCarrinho.objects.filter(usuario=request.user)
+            if not carrinho.exists():
+                return JsonResponse({'error': 'Seu carrinho está vazio'}, status=400)
+            
+            total = sum(item.subtotal() for item in carrinho)
+            pedido = Pedido.objects.create(
+                usuario=request.user,
+                total=total,
+                status='pending'
             )
-
+            
+            for item in carrinho:
+                PedidoItem.objects.create(
+                    pedido=pedido,
+                    produto=item.produto,
+                    quantidade=item.quantidade,
+                    preco_unitario=item.produto.preco
+                )
+        
+        # Cria novo pagamento no Mercado Pago
         sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
         
         payment_data = {
-            "transaction_amount": float(total),
+            "transaction_amount": float(pedido.total),
             "payment_method_id": "pix",
             "payer": {
                 "email": request.user.email,
@@ -143,64 +171,110 @@ def finalizar_compra(request):
             "description": f"Pedido #{pedido.id}",
             "external_reference": str(pedido.id),
         }
-
+        
         payment_response = sdk.payment().create(payment_data)
-
+        
         if payment_response['status'] not in [200, 201]:
             error_msg = payment_response.get('response', {}).get('message', 'Erro no Mercado Pago')
             raise Exception(error_msg)
-
+        
         payment = payment_response['response']
         pedido.codigo_transacao = payment['id']
         pedido.save()
-
-        carrinho.delete()
-
+        
+        if not pedido_id:  # Só limpa carrinho se for novo pedido
+            carrinho.delete()
+        
         return JsonResponse({
             'success': True,
             'redirect_url': reverse('pagamento_pix', args=[pedido.id])
         })
-
+        
     except Exception as e:
-        logger.error(f"Erro ao finalizar compra: {str(e)}")
+        logger.error(f"Erro ao finalizar compra: {str(e)}", exc_info=True)
         return JsonResponse({
             'error': str(e),
-            'redirect_url': reverse('pagamento_falhou', args=[pedido.id])
+            'redirect_url': reverse('pagamento_falhou', args=[pedido.id]) if 'pedido' in locals() else reverse('ver_carrinho')
         }, status=500)
+    
+def validate_mercadopago_signature(payload, signature):
+    """Valida a assinatura do webhook do Mercado Pago"""
+    if not settings.MERCADOPAGO_WEBHOOK_SECRET:
+        logger.warning("MERCADOPAGO_WEBHOOK_SECRET não configurado - skipping signature validation")
+        return True
+    
+    secret = settings.MERCADOPAGO_WEBHOOK_SECRET.encode()
+    expected_signature = hmac.new(secret, payload, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected_signature, signature)
 
+    
 @login_required
 def pagamento_pix(request, pedido_id):
-    pedido = get_object_or_404(Pedido, id=pedido_id, usuario=request.user)
+    """
+    View aprimorada com validações adicionais:
+    - Verifica se o usuário é dono do pedido
+    - Verifica se o pedido já foi pago
+    - Verifica timeout de pagamento
+    """
+    pedido = get_object_or_404(Pedido, id=pedido_id)
+    
+    # Validação 1: Verifica se o usuário é dono do pedido
+    if pedido.usuario != request.user:
+        messages.error(request, "Você não tem permissão para acessar este pedido.")
+        return redirect('meus_pedidos')
+    
+    # Validação 2: Verifica se o pedido já foi pago
+    if pedido.status == 'paid':
+        messages.info(request, "Este pedido já foi pago.")
+        return redirect('pagamento_aprovado', pedido_id=pedido.id)
+    
+    # Validação 3: Verifica timeout de pagamento (30 minutos)
+    tempo_decorrido = datetime.now(pedido.criado_em.tzinfo) - pedido.criado_em
+    if tempo_decorrido > timedelta(minutes=30):
+        pedido.status = 'expired'
+        pedido.save()
+        messages.error(request, "Tempo para pagamento expirado. Por favor, inicie um novo pedido.")
+        return redirect('pagamento_falhou', pedido_id=pedido.id)
     
     try:
         sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
         payment = sdk.payment().get(pedido.codigo_transacao)
         
         if payment['status'] != 200:
-            raise Exception("Erro ao consultar pagamento")
+            raise Exception("Erro ao consultar pagamento no Mercado Pago")
             
         payment_data = payment['response']
         
+        # Se o pagamento já foi aprovado, redireciona
         if payment_data.get('status') == 'approved':
+            pedido.status = 'paid'
+            pedido.save()
             return redirect('pagamento_aprovado', pedido_id=pedido.id)
             
-        qr_data = payment_data.get('point_of_interaction', {}).get('transaction_data', {})
+        # Se o pagamento falhou, atualiza status
+        if payment_data.get('status') in ['cancelled', 'rejected']:
+            pedido.status = 'failed'
+            pedido.save()
+            return redirect('pagamento_falhou', pedido_id=pedido.id)
         
+        # Gera novo QR code se o anterior expirou
+        qr_data = payment_data.get('point_of_interaction', {}).get('transaction_data', {})
         if not qr_data.get('qr_code_base64'):
-            raise Exception("QR Code não gerado")
+            # Se não tem QR code válido, cria novo pagamento
+            return finalizar_compra(request, pedido_id=pedido.id)
         
         return render(request, 'cardapio/pagamento_pix.html', {
             'pedido': pedido,
             'qr_code': qr_data.get('qr_code', ''),
             'qr_code_base64': qr_data['qr_code_base64'],
-            'pix_data': qr_data
+            'pix_data': qr_data,
+            'minutes_left': 30 - tempo_decorrido.seconds // 60
         })
         
     except Exception as e:
-        logger.error(f"Erro no pagamento PIX: {str(e)}")
+        logger.error(f"Erro no pagamento PIX - Pedido {pedido.id}: {str(e)}")
         messages.error(request, f"Erro ao processar PIX: {str(e)}")
         return redirect('pagamento_falhou', pedido_id=pedido.id)
-
 @login_required
 def pagamento_aprovado(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id, usuario=request.user)
@@ -220,33 +294,80 @@ def pagamento_pendente(request, pedido_id):
 
 @csrf_exempt
 def webhook_mercadopago(request):
-    if request.method == 'POST':
+    """
+    Webhook aprimorado com:
+    - Verificação de assinatura
+    - Idempotência
+    - Tratamento robusto de erros
+    """
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+    
+    try:
+        # Obter assinatura do header
+        signature = request.headers.get('X-Signature')
+        if not signature:
+            logger.warning("Webhook sem assinatura")
+            return HttpResponse(status=400)
+        
+        # Validar assinatura
+        if not validate_mercadopago_signature(request.body, signature):
+            logger.warning("Assinatura do webhook inválida")
+            return HttpResponse(status=403)
+        
+        # Parse do payload
         try:
             data = json.loads(request.body)
             payment_id = data['data']['id']
-            
-            sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
-            payment = sdk.payment().get(payment_id)
-            
-            if payment['status'] != 200:
-                return HttpResponse(status=400)
-                
-            payment_data = payment['response']
-            pedido = Pedido.objects.get(id=payment_data['external_reference'])
-            
-            if payment_data['status'] == 'approved':
-                pedido.status = 'paid'
-            elif payment_data['status'] in ['cancelled', 'rejected']:
-                pedido.status = 'failed'
-                
-            pedido.save()
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"Erro ao parsear payload do webhook: {str(e)}")
+            return HttpResponse(status=400)
+        
+        # Verificar idempotência
+        payload_hash = hashlib.sha256(request.body).hexdigest()
+        if PaymentLog.objects.filter(payload_hash=payload_hash).exists():
+            logger.info(f"Webhook duplicado ignorado - Payment ID: {payment_id}")
             return HttpResponse(status=200)
+        
+        # Registrar o webhook
+        PaymentLog.objects.create(
+            payment_id=payment_id,
+            payload_hash=payload_hash
+        )
+        
+        # Consultar pagamento no Mercado Pago
+        sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+        payment = sdk.payment().get(payment_id)
+        
+        if payment['status'] != 200:
+            logger.error(f"Erro ao consultar pagamento {payment_id} no Mercado Pago")
+            return HttpResponse(status=400)
             
-        except Exception as e:
-            logger.error(f"Erro no webhook: {str(e)}")
-            return HttpResponse(status=500)
-    
-    return HttpResponse(status=405)
+        payment_data = payment['response']
+        
+        # Validar reference_id (ID do pedido)
+        try:
+            pedido = Pedido.objects.get(id=payment_data['external_reference'])
+        except (KeyError, Pedido.DoesNotExist) as e:
+            logger.error(f"Pedido não encontrado para payment {payment_id}: {str(e)}")
+            return HttpResponse(status=404)
+        
+        # Atualizar status do pedido
+        if payment_data['status'] == 'approved':
+            pedido.status = 'paid'
+        elif payment_data['status'] in ['cancelled', 'rejected']:
+            pedido.status = 'failed'
+        elif payment_data['status'] == 'pending':
+            pedido.status = 'pending'
+        
+        pedido.save()
+        logger.info(f"Pedido {pedido.id} atualizado para status {pedido.status}")
+        return HttpResponse(status=200)
+        
+    except Exception as e:
+        logger.error(f"Erro não tratado no webhook: {str(e)}", exc_info=True)
+        return HttpResponse(status=500)
+
 
 @login_required
 def verificar_status_pagamento(request, pedido_id):
@@ -257,3 +378,19 @@ def verificar_status_pagamento(request, pedido_id):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Método não permitido'}, status=405)
+
+def serve_favicon(request):
+    """
+    View personalizada para servir o favicon.ico
+    """
+    # Caminho para o favicon na pasta static
+    favicon_path = os.path.join(settings.STATIC_ROOT, 'img', 'favicon.ico')
+    
+    # Verifica se o arquivo existe
+    if os.path.exists(favicon_path):
+        try:
+            with open(favicon_path, 'rb') as f:
+                return HttpResponse(f.read(), content_type='image/x-icon')
+        except IOError:
+            return HttpResponseNotFound()
+    return HttpResponseNotFound()

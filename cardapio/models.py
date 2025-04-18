@@ -95,3 +95,19 @@ class PedidoItem(models.Model):
 
     def subtotal(self):
         return self.preco_unitario * self.quantidade
+    
+
+
+import hashlib
+from django.db import models
+
+class PaymentLog(models.Model):
+    payment_id = models.CharField(max_length=255, unique=True)
+    processed_at = models.DateTimeField(auto_now_add=True)
+    payload_hash = models.CharField(max_length=64)  # Para armazenar SHA-256 do payload
+
+    @classmethod
+    def create_from_payment(cls, payment_id, payload):
+        payload_str = json.dumps(payload, sort_keys=True)
+        payload_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+        return cls.objects.create(payment_id=payment_id, payload_hash=payload_hash)

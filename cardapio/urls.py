@@ -1,5 +1,8 @@
+from django.conf import settings
 from django.urls import path
 from . import views
+from django.views.static import serve 
+from .views import serve_favicon
 
 urlpatterns = [
     # URLs de Produtos e Carrinho
@@ -10,6 +13,7 @@ urlpatterns = [
     path('remover/<int:item_id>/', views.remover_do_carrinho, name='remover_do_carrinho'),
     path('carrinho/aumentar/<int:item_id>/', views.aumentar_quantidade, name='aumentar_quantidade'),
     path('carrinho/diminuir/<int:item_id>/', views.diminuir_quantidade, name='diminuir_quantidade'),
+    path('favicon.ico', serve, {'path': 'img/favicon.ico', 'document_root': settings.STATIC_ROOT}),
     
     # URLs de Autenticação
     path('login/', views.CustomLoginView.as_view(), name='login'),
@@ -29,5 +33,5 @@ urlpatterns = [
     path('webhook/mercadopago/', views.webhook_mercadopago, name='webhook_mercadopago'),
     
     # Static Files
-    path('favicon.ico', views.serve, {'path': 'img/favicon.ico'}),
+    path('favicon.ico', serve_favicon, name='favicon'),
 ]
