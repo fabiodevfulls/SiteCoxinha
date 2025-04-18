@@ -13,7 +13,7 @@ sys.path.append(str(BASE_DIR))
 load_dotenv(BASE_DIR / '.env')
 
 # Debug print (apenas para checar se o token está carregado corretamente)
-print("MERCADOPAGO_ACCESS_TOKEN:", os.getenv('MERCADOPAGO_ACCESS_TOKEN'))
+
 
 # Chave secreta e modo de depuração
 SECRET_KEY = os.getenv('SECRET_KEY', 'chave-insegura-para-dev')
@@ -144,3 +144,17 @@ CSRF_TRUSTED_ORIGINS = [
     'https://api.mercadopago.com',
     'https://www.mercadopago.com.br'
 ]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+}
