@@ -376,6 +376,23 @@ def webhook_mercadopago(request):
         logger.error(f"Erro inesperado no webhook: {e}", exc_info=True)
         return HttpResponse(status=500)
 
+@login_required
+def verificar_status_pagamento(request, pedido_id):
+    if request.method == 'GET':
+        try:
+            pedido = get_object_or_404(Pedido, id=pedido_id, usuario=request.user)
+            return JsonResponse({
+                'status': pedido.status,
+                'pedido_id': pedido.id,
+                'total': pedido.total
+            })
+        except Exception as e:
+            return JsonResponse({
+                'error': str(e),
+                'status': 'error'
+            }, status=500)
+    return JsonResponse({'error': 'Método não permitido'}, status=405)
+
 def serve_favicon(request):
     """
     View personalizada para servir o favicon.ico
