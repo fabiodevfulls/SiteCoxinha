@@ -1,26 +1,25 @@
+# settings.py
+
 import os
 import sys
 from pathlib import Path
-from urllib import request
-from django.http.request import validate_host
 from dotenv import load_dotenv
-print("MERCADOPAGO_ACCESS_TOKEN:", os.getenv('MERCADOPAGO_ACCESS_TOKEN'))
 
+# Caminho base do projeto
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 
-# Carrega variáveis de ambiente do .env
+# Carrega variáveis do .env antes de qualquer uso de os.getenv
 load_dotenv(BASE_DIR / '.env')
 
+# Debug print (apenas para checar se o token está carregado corretamente)
+print("MERCADOPAGO_ACCESS_TOKEN:", os.getenv('MERCADOPAGO_ACCESS_TOKEN'))
+
+# Chave secreta e modo de depuração
 SECRET_KEY = os.getenv('SECRET_KEY', 'chave-insegura-para-dev')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-# settings.py
-
-# Defina DEBUG como True para desenvolvimento
-DEBUG = True
-
-# Adicione todos os hosts necessários
+# Hosts permitidos
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
@@ -28,19 +27,19 @@ ALLOWED_HOSTS = [
     'lanchonetedeliciadecoxinha.kesug.com'
 ]
 
-# Desative estas configurações de segurança para desenvolvimento
-if DEBUG:
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
-    SECURE_SSL_REDIRECT = False
-# Adicione isto se usar Render:
+# Configurações específicas para Render
 if 'RENDER' in os.environ:
     RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
     if RENDER_EXTERNAL_HOSTNAME:
         ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
+# Ajustes para segurança em produção
+if DEBUG:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = False
 
-
+# Aplicativos instalados
 INSTALLED_APPS = [
     'corsheaders',
     'crispy_bootstrap5',
@@ -55,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 ]
 
+# Middlewares
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -67,9 +67,11 @@ MIDDLEWARE = [
     'cardapio.middleware.CarrinhoMiddleware',
     'corsheaders.middleware.CorsMiddleware',
 ]
+
 CORS_ALLOWED_ORIGINS = [
-    "https://www.mercadopago.com.br",  # URL do Mercado Pago
+    "https://www.mercadopago.com.br",
 ]
+
 ROOT_URLCONF = 'lanchonete.urls'
 
 TEMPLATES = [
@@ -90,6 +92,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'lanchonete.wsgi.application'
 AUTH_USER_MODEL = 'cardapio.Usuario'
 
+# Banco de dados
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -97,6 +100,7 @@ DATABASES = {
     }
 }
 
+# Validações de senha
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -104,24 +108,28 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# Configurações de data/hora
 TIME_ZONE = 'America/Sao_Paulo'
 USE_TZ = True
 
+# Arquivos estáticos
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
+# Configurações de formulários
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
+# Redirecionamentos de login/logout
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/menu/'
 
+# Configurações de import/export
 IMPORT_EXPORT_USE_TRANSACTIONS = True
 IMPORT_EXPORT_SKIP_ADMIN_LOG = False
 
+# Configurações do Mercado Pago
 MERCADOPAGO = {
     'ACCESS_TOKEN': os.getenv('MERCADOPAGO_ACCESS_TOKEN'),
     'PUBLIC_KEY': os.getenv('MERCADOPAGO_PUBLIC_KEY'),
@@ -129,9 +137,9 @@ MERCADOPAGO = {
     'AUTO_RETURN': 'approved',
     'WEBHOOK_URL': os.getenv('WEBHOOK_URL'),
     'NOTIFICATION_URL': os.getenv('NOTIFICATION_URL')
-
 }
-# Configurações de segurança para o webhook
+
+# Confiança para requisições externas (webhook)
 CSRF_TRUSTED_ORIGINS = [
     'https://api.mercadopago.com',
     'https://www.mercadopago.com.br'

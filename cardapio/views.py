@@ -134,7 +134,7 @@ def finalizar_compra(request, pedido_id=None):
                 
             # Cancela o pagamento anterior no Mercado Pago
             if pedido.codigo_transacao:
-                sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+                sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
                 sdk.payment().cancel(pedido.codigo_transacao)
         else:
             # Fluxo normal - novo pedido
@@ -158,7 +158,8 @@ def finalizar_compra(request, pedido_id=None):
                 )
         
         # Cria novo pagamento no Mercado Pago
-        sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+
         
         payment_data = {
             "transaction_amount": float(pedido.total),
@@ -237,7 +238,7 @@ def pagamento_pix(request, pedido_id):
         return redirect('pagamento_falhou', pedido_id=pedido.id)
     
     try:
-        sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
         payment = sdk.payment().get(pedido.codigo_transacao)
         
         if payment['status'] != 200:
@@ -336,7 +337,7 @@ def webhook_mercadopago(request):
         )
         
         # Consultar pagamento no Mercado Pago
-        sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
         payment = sdk.payment().get(payment_id)
         
         if payment['status'] != 200:
