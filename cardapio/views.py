@@ -20,6 +20,8 @@ from .models import Produto, Categoria, ItemCarrinho, Pedido, PedidoItem, Paymen
 from datetime import datetime, timedelta
 from django.http import HttpResponse, HttpResponseNotFound
 import os
+from .models import Pedido, PaymentLog
+from .utils import validate_mercadopago_signature
 
 logger = logging.getLogger(__name__)
 
@@ -296,96 +298,83 @@ def pagamento_pendente(request, pedido_id):
 @csrf_exempt
 def webhook_mercadopago(request):
     """
-    Webhook aprimorado com:
-    - Verificação de assinatura
-    - Idempotência
-    - Tratamento robusto de erros
+    Webhook com:
+    - Validação opcional de assinatura (ativa apenas fora do DEBUG)
+    - Idempotência via hash do payload
+    - Tolerância para testes no modo DEBUG
     """
     if request.method != 'POST':
         return HttpResponse(status=405)
-    
+
     try:
-        # Obter assinatura do header
+        # Verificação opcional da assinatura
         signature = request.headers.get('X-Signature')
-        if not signature:
+        if not signature and not settings.DEBUG:
             logger.warning("Webhook sem assinatura")
             return HttpResponse(status=400)
-        
-        # Validar assinatura
-        if not validate_mercadopago_signature(request.body, signature):
+
+        if signature and not validate_mercadopago_signature(request.body, signature):
             logger.warning("Assinatura do webhook inválida")
             return HttpResponse(status=403)
-        
-        # Parse do payload
+
+        # Parse do payload JSON
         try:
             data = json.loads(request.body)
             payment_id = data['data']['id']
         except (json.JSONDecodeError, KeyError) as e:
-            logger.error(f"Erro ao parsear payload do webhook: {str(e)}")
+            logger.error(f"Erro ao parsear payload: {e}")
             return HttpResponse(status=400)
-        
+
         # Verificar idempotência
         payload_hash = hashlib.sha256(request.body).hexdigest()
         if PaymentLog.objects.filter(payload_hash=payload_hash).exists():
             logger.info(f"Webhook duplicado ignorado - Payment ID: {payment_id}")
             return HttpResponse(status=200)
-        
-        # Registrar o webhook
+
+        # Registrar log do webhook
         PaymentLog.objects.create(
             payment_id=payment_id,
             payload_hash=payload_hash
         )
-        
-        # Consultar pagamento no Mercado Pago
+
+        # Consultar pagamento na API do Mercado Pago
         sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
         payment = sdk.payment().get(payment_id)
-        
+
         if payment['status'] != 200:
-            logger.error(f"Erro ao consultar pagamento {payment_id} no Mercado Pago")
+            logger.warning(f"Pagamento não encontrado no Mercado Pago: {payment_id}")
+
+            # Permitir testes com payment_id falso no modo DEBUG
+            if settings.DEBUG:
+                return HttpResponse(status=200)
             return HttpResponse(status=400)
-            
+
         payment_data = payment['response']
-        
-        # Validar reference_id (ID do pedido)
+
+        # Buscar pedido via external_reference
         try:
             pedido = Pedido.objects.get(id=payment_data['external_reference'])
         except (KeyError, Pedido.DoesNotExist) as e:
-            logger.error(f"Pedido não encontrado para payment {payment_id}: {str(e)}")
+            logger.error(f"Pedido não encontrado para o pagamento {payment_id}: {e}")
             return HttpResponse(status=404)
-        
-        # Atualizar status do pedido
-        if payment_data['status'] == 'approved':
+
+        # Atualizar status do pedido conforme status do pagamento
+        status_pagamento = payment_data['status']
+        if status_pagamento == 'approved':
             pedido.status = 'paid'
-        elif payment_data['status'] in ['cancelled', 'rejected']:
+        elif status_pagamento in ['cancelled', 'rejected']:
             pedido.status = 'failed'
-        elif payment_data['status'] == 'pending':
+        elif status_pagamento == 'pending':
             pedido.status = 'pending'
-        
+
         pedido.save()
-        logger.info(f"Pedido {pedido.id} atualizado para status {pedido.status}")
+        logger.info(f"Status do pedido {pedido.id} atualizado para {pedido.status}")
+
         return HttpResponse(status=200)
-        
+
     except Exception as e:
-        logger.error(f"Erro não tratado no webhook: {str(e)}", exc_info=True)
+        logger.error(f"Erro inesperado no webhook: {e}", exc_info=True)
         return HttpResponse(status=500)
-
-
-@login_required
-def verificar_status_pagamento(request, pedido_id):
-    if request.method == 'GET':
-        try:
-            pedido = get_object_or_404(Pedido, id=pedido_id, usuario=request.user)
-            return JsonResponse({
-                'status': pedido.status,
-                'pedido_id': pedido.id,
-                'total': pedido.total
-            })
-        except Exception as e:
-            return JsonResponse({
-                'error': str(e),
-                'status': 'error'
-            }, status=500)
-    return JsonResponse({'error': 'Método não permitido'}, status=405)
 
 def serve_favicon(request):
     """
