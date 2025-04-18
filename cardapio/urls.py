@@ -18,7 +18,7 @@ urlpatterns = [
     path('carrinho/diminuir/<int:item_id>/', views.diminuir_quantidade, name='diminuir_quantidade'),
     path('favicon.ico', serve, {'path': 'img/favicon.ico'}),
     path('api/verificar-status/<int:pedido_id>/', verificar_status_pagamento, name='verificar_status_pagamento'),
-    path('pagamento/pix/<int:pedido_id>/', mostrar_qrcode, name='mostrar_qrcode'),
+    path('pagamento/qr-code/<int:pedido_id>/', views.mostrar_qrcode, name='mostrar_qrcode'),
 
 
     

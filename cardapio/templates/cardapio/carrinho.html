@@ -71,7 +71,7 @@
         </a>
         
         <!-- Alteração importante: Formulário para POST -->
-        <form action="{% url 'finalizar_compra' %}" method="post">
+        <form action="{% url 'finalizar_compra' %}" method="post" id="form-finalizar-compra">
             {% csrf_token %}
             <button type="submit" class="btn btn-success">
                 <i class="bi bi-check-circle"></i> Finalizar Compra com PIX
@@ -102,6 +102,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
             }
         });
+    });
+    
+    // Enviar o formulário via fetch para redirecionamento após finalização
+    document.getElementById('form-finalizar-compra').addEventListener('submit', function(e) {
+        e.preventDefault(); // Impede o envio padrão do formulário
+        fetch('{% url "finalizar_compra" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: new FormData(this) // Envia os dados do formulário
+        })
+        .then(response => response.json()) // Espera a resposta do servidor
+        .then(data => {
+            if (data.redirect_url) { // Se o servidor enviar a URL para redirecionar
+                window.location.href = data.redirect_url; // Redireciona o usuário
+            }
+        })
+        .catch(error => console.error('Erro ao finalizar compra:', error));
     });
 });
 </script>

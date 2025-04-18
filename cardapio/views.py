@@ -16,6 +16,7 @@ import json
 import logging
 from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
 
 # Log Configuration
 logger = logging.getLogger(__name__)
@@ -226,18 +227,13 @@ def finalizar_compra(request):
         # 8. Limpar carrinho
         carrinho.delete()
 
-        # 9. Renderizar template com QR Code (ALTERAÇÃO IMPORTANTE)
-        return render(request, 'cardapio/qr_code.html', {
-            'pedido': pedido,
-            'qr_code': payment_info['point_of_interaction']['transaction_data']['qr_code'],
-            'qr_code_base64': payment_info['point_of_interaction']['transaction_data']['qr_code_base64'],
-            'pix_data': payment_info['point_of_interaction']['transaction_data']
-        })
+        # 9. Retornar URL para redirecionamento
+        return JsonResponse({'redirect_url': reverse('mostrar_qrcode', args=[pedido.id])})
 
     except Exception as e:
         logger.error(f"Erro no checkout: {str(e)}", exc_info=True)
         messages.error(request, f"Erro ao processar pagamento: {str(e)}")
-        return redirect('ver_carrinho')
+        return JsonResponse({'error': 'Erro ao processar pagamento'}, status=500)
 
 def mostrar_qrcode(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
