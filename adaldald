@@ -1,0 +1,146 @@
+[33mcommit 4bd2915832221a207bc24cfce6f8030de98e7fff[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+Date:   Fri Apr 18 17:05:36 2025 -0300
+
+    Remove .env from repository
+
+[1mdiff --git a/.env b/.env[m
+[1mdeleted file mode 100644[m
+[1mindex 67c7134..0000000[m
+[1m--- a/.env[m
+[1m+++ /dev/null[m
+[36m@@ -1,14 +0,0 @@[m
+[31m-# .env (CORRETO)[m
+[31m-DEBUG=False[m
+[31m-ALLOWED_HOSTS="127.0.0.1,localhost,.onrender.com,lanchonetedeliciadecoxinha.kesug.com,www.lanchonetedeliciadecoxinha.kesug.com"[m
+[31m-DATABASE_URL=sqlite:///db.sqlite3[m
+[31m-STATIC_ROOT=staticfiles[m
+[31m-[m
+[31m-# Mercado Pago (Produção - SEM ASPAS)[m
+[31m-SANDBOX_MODE=False[m
+[31m-MERCADOPAGO_ACCESS_TOKEN=APP_USR-4523730020321208-041813-fdf054eb14996f2218d5d90c5ac9962d-1857092373  # Gere um novo![m
+[31m-MERCADOPAGO_PUBLIC_KEY=APP_USR-a733c875-1ca3-4a33-8cf6-c57978d61f1c[m
+[31m-[m
+[31m-# URLs (com aspas se tiverem caracteres especiais)[m
+[31m-WEBHOOK_URL="https://www.lanchonetedeliciadecoxinha.kesug.com/webhook/mercadopago/"[m
+[31m-NOTIFICATION_URL="https://www.lanchonetedeliciadecoxinha.kesug.com/webhook/mercadopago/"[m
+\ No newline at end of file[m
+
+[33mcommit 85e95900bd71eed7c5df4bba8e6ce9b7410da8e9[m
+Author: Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+Date:   Fri Apr 18 16:27:47 2025 -0300
+
+    templates
+
+[1mdiff --git a/cardapio/__pycache__/views.cpython-311.pyc b/cardapio/__pycache__/views.cpython-311.pyc[m
+[1mindex ad92dbe..b83dce2 100644[m
+Binary files a/cardapio/__pycache__/views.cpython-311.pyc and b/cardapio/__pycache__/views.cpython-311.pyc differ
+[1mdiff --git a/cardapio/templates/cardapio/base.html b/cardapio/templates/cardapio/base.html[m
+[1mindex 38e3512..a5ecd3b 100644[m
+[1m--- a/cardapio/templates/cardapio/base.html[m
+[1m+++ b/cardapio/templates/cardapio/base.html[m
+[36m@@ -9,6 +9,7 @@[m
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">[m
+     <!-- Bootstrap Icons -->[m
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">[m
+[32m+[m
+     <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/svg+xml">[m
+     <link rel="alternate icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">[m
+     <style>[m
+[1mdiff --git a/cardapio/templates/cardapio/carrinho.html b/cardapio/templates/cardapio/carrinho.html[m
+[1mindex 60494e8..ffd1ef9 100644[m
+[1m--- a/cardapio/templates/cardapio/carrinho.html[m
+[1m+++ b/cardapio/templates/cardapio/carrinho.html[m
+[36m@@ -25,6 +25,9 @@[m
+                             {% if item.produto.imagem %}[m
+                             <img src="{{ item.produto.imagem.url }}" alt="{{ item.produto.nome }}" [m
+                                  class="img-thumbnail me-3" style="width: 60px; height: 60px; object-fit: cover;">[m
+[32m+[m[32m                            {% else %}[m
+[32m+[m[32m                            <img src="{% static 'img/produto-sem-imagem.jpg' %}" alt="Sem imagem"[m
+[32m+[m[32m                                 class="img-thumbnail me-3" style="width: 60px; height: 60px; object-fit: cover;">[m
+                             {% endif %}[m
+                             <span>{{ item.produto.nome }}</span>[m
+                         </div>[m
+[36m@@ -70,10 +73,9 @@[m
+             <i class="bi bi-arrow-left"></i> Continuar Comprando[m
+         </a>[m
+         [m
+[31m-        <!-- Alteração importante: Formulário para POST -->[m
+[31m-        <form action="{% url 'finalizar_compra' %}" method="post" id="form-finalizar-compra">[m
+[32m+[m[32m        <form id="finalizar-compra-form" method="post" action="{% url 'finalizar_compra' %}">[m
+             {% csrf_token %}[m
+[31m-            <button type="submit" class="btn btn-success">[m
+[32m+[m[32m            <button type="submit" class="btn btn-success" id="btn-finalizar-compra">[m
+                 <i class="bi bi-check-circle"></i> Finalizar Compra com PIX[m
+             </button>[m
+         </form>[m
+[36m@@ -91,37 +93,59 @@[m
+ {% endblock %}[m
+ [m
+ {% block scripts %}[m
+[31m-<!-- Adicione este script para confirmar remoção de itens -->[m
+ <script>[m
+ document.addEventListener('DOMContentLoaded', function() {[m
+[31m-    // Confirmar antes de remover item[m
+[31m-    const removeButtons = document.querySelectorAll('a[href*="remover_do_carrinho"]');[m
+[31m-    removeButtons.forEach(button => {[m
+[31m-        button.addEventListener('click', function(e) {[m
+[32m+[m[32m    // Confirmação para remover itens[m
+[32m+[m[32m    document.querySelectorAll('a[href*="remover_do_carrinho"]').forEach(link => {[m
+[32m+[m[32m        link.addEventListener('click', function(e) {[m
+             if (!confirm('Tem certeza que deseja remover este item do carrinho?')) {[m
+                 e.preventDefault();[m
+             }[m
+         });[m
+     });[m
+[32m+[m
+[32m+[m[32m    // Envio AJAX do formulário de finalização[m
+[32m+[m[32m    const form = document.getElementById('finalizar-compra-form');[m
+[32m+[m[32m    const btnFinalizar = document.getElementById('btn-finalizar-compra');[m
+     [m
+[31m-    // Enviar o formulário via fetch para redirecionamento após finalização[m
+[31m-    document.getElementById('form-finalizar-compra').addEventListener('submit', function(e) {[m
+[31m-        e.preventDefault(); // Impede o envio padrão do formulário[m
+[31m-        fetch('{% url "finalizar_compra" %}', {[m
+[32m+[m[32m    form.addEventListener('submit', function(e) {[m
+[32m+[m[32m        e.preventDefault();[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Desabilita o botão para evitar múltiplos cliques[m
+[32m+[m[32m        btnFinalizar.disabled = true;[m
+[32m+[m[32m        btnFinalizar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processando...';[m
+[32m+[m[41m        [m
+[32m+[m[32m        fetch(form.action, {[m
+             method: 'POST',[m
+             headers: {[m
+[31m-                'X-CSRFToken': '{{ csrf_token }}'[m
+[32m+[m[32m                'X-CSRFToken': '{{ csrf_token }}',[m
+[32m+[m[32m                'Accept': 'application/json',[m
+[32m+[m[32m                'Content-Type': 'application/x-www-form-urlencoded',[m
+             },[m
+[31m-            body: new FormData(this) // Envia os dados do formulário[m
+[32m+[m[32m            body: new URLSearchParams(new FormData(form))[m
+[32m+[m[32m        })[m
+[32m+[m[32m        .then(response => {[m
+[32m+[m[32m            if (!response.ok) {[m
+[32m+[m[32m                throw new Error('Erro na requisição');[m
+[32m+[m[32m            }[m
+[32m+[m[32m            return response.json();[m
+         })[m
+[31m-        .then(response => response.json()) // Espera a resposta do servidor[m
+         .then(data => {[m
+[31m-            if (data.redirect_url) { // Se o servidor enviar a URL para redirecionar[m
+[31m-                window.location.href = data.redirect_url; // Redireciona o usuário[m
+[32m+[m[32m            if (data.redirect_url) {[m
+[32m+[m[32m                window.location.href = data.redirect_url;[m
+[32m+[m[32m            } else if (data.error) {[m
+[32m+[m[32m                alert('Erro: ' + data.error);[m
+[32m+[m[32m                btnFinalizar.disabled = false;[m
+[32m+[m[32m                btnFinalizar.innerHTML = '<i class="bi bi-check-circle"></i> Finalizar Compra com PIX';[m
+             }[m
+         })[m
+[31m-        .catch(error => console.error('Erro ao finalizar compra:', error));[m
+[32m+[m[32m        .catch(error => {[m
+[32m+[m[32m            console.error('Erro:', error);[m
+[32m+[m[32m            alert('Ocorreu um erro ao processar seu pedido. Por favor, tente novamente.');[m
+[32m+[m[32m            btnFinalizar.disabled = false;[m
+[32m+[m[32m            btnFinalizar.innerHTML = '<i class="bi 
