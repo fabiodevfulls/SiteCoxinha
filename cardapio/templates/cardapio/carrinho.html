@@ -110,7 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('{% url "finalizar_compra" %}', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
             body: new FormData(this) // Envia os dados do formulário
