@@ -1,0 +1,218 @@
+[33mcommit 3263229dab42f9a9f163b780bce19b549877c944[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-05-30
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-05-30
+
+    .e
+
+[33mcommit 8dc92754885d2313120be44c84f1ddfd8b0ad03c[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-05-30
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-05-30
+
+    Corrige URL de conexão com banco no Render usando DATABASE_URL
+
+[33mcommit fb97850dc44260530ebc22295b6f8c2ac88a0db0[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-05-30
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-05-30
+
+    Mensagem explicando o que foi alterado
+
+[33mcommit 0ed0ab75091e19542de8de77a6799997c79d0f03[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    status
+
+[33mcommit 16d516699b3dbdb535618342230b1e2548a9b38f[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    Adiciona utils.py com validação de assinatura do webhook
+
+[33mcommit b4a4dbe162a72445f39d93a9812ec3ad3929f023[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    media
+
+[33mcommit 5e27394cdc700a3ff2a8524df7bfb6302eefa437[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    login
+
+[33mcommit a343f7bb66bcd95eb278921811ad8d830241604a[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    gitinore
+
+[33mcommit 4bd2915832221a207bc24cfce6f8030de98e7fff[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    Remove .env from repository
+
+[33mcommit 85e95900bd71eed7c5df4bba8e6ce9b7410da8e9[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    templates
+
+[33mcommit bbcab34b71edd12dff1aa5e5276629b283ca9aa4[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    models jason
+
+[33mcommit 6c5ab92946b78b90878a5523f4f6feb798eea032[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    ev
+
+[33mcommit ecc26700d65848972e580e23f4cc85f9d9134564[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    mercado pago
+
+[33mcommit 1aa744b726d356044ad6bad072b6c1e78b3c91ac[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    Remove .env do histórico do Git
+
+[33mcommit a98b02fe3e3abbc41bf72c370452b71280d6d6dd[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    pagamentos models
+
+[33mcommit 21118634695cec956d6c149a611439b28b2a7417[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    pagamentos de integração
+
+[33mcommit 349b585206d7b5258648660f7758b02a946dcdc4[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    finalizar compre
+
+[33mcommit 601cca984f6e5c833334dc8e5b13d57d90ac678a[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    função
+
+[33mcommit 0344680c0ad1c04b9e170bf7d80d9ace204e19ec[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    atualizar finalizar compra
+
+[33mcommit ff032655e5c4061f76e9e7cdb818e7d49b505a2a[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-18
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-18
+
+    atualizar
+
+[33mcommit cd2a08e68166297f0b499042a9c2c6bf993837fb[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-17
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-17
+
+    finalizar compra
+
+[33mcommit 766c4bac29c3db74002d7a8b6f64694bba02c519[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-17
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-17
+
+    templates
+
+[33mcommit e54dd50679175863619fb98ae09223f6d0c73da9[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-17
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-17
+
+    urls
+
+[33mcommit bd3ffbaee103151538de2edf056656d708d37358[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-17
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-17
+
+    as viwes
+
+[33mcommit 0961dbcdf382f38279981e08c048aa2e298b2dc1[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-17
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-17
+
+    valor de produto para teste
+
+[33mcommit 9320143f9af43d1f038b4312218d95c0fd45ec62[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-17
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-17
+
+    QRcode
+
+[33mcommit 76e2e7c46d0848f1718580622b0df29a19a9b1e3[m
+Author:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+AuthorDate: 2025-04-17
+Commit:     Fabio da silva araujo <122120480+fabiodevfulls@users.noreply.github.com>
+CommitDate: 2025-04-17
+
+    pagamnetos
+
+[33mcommit 64ff70ad1c8767d9f4a6a1f4386d6f70d099b145[m
+Author:     Fabio da silva araujo <122120480+fabiode

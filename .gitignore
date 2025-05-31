@@ -1,7 +1,6 @@
-# .gitignore
-
 # Variáveis de ambiente
 .env
+.env.production
 *.env
 .env.local
 .env.*.local
