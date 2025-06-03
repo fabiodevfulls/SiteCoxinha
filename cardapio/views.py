@@ -46,11 +46,11 @@ def custom_logout(request):
     return redirect('login')
 
 # Views de Produtos
-class ProdutoListView(LoginRequiredMixin, ListView):
+class ProdutoListView(ListView):
     model = Produto
     template_name = 'cardapio/menu.html'
     context_object_name = 'produtos'
-    login_url = '/login/'
+    
 
     def get_queryset(self):
         categoria = self.request.GET.get('categoria')
@@ -62,11 +62,11 @@ class ProdutoListView(LoginRequiredMixin, ListView):
         context['categorias'] = Categoria.objects.all()
         return context
 
-class ProdutoDetailView(LoginRequiredMixin, DetailView):
+class ProdutoDetailView(DetailView):
     model = Produto
     template_name = 'cardapio/detalhe_produto.html'
     context_object_name = 'produto'
-    login_url = '/login/'
+
 
 # Views de Carrinho
 @login_required

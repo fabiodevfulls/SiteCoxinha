@@ -113,3 +113,13 @@ class PaymentLog(models.Model):
         payload_str = json.dumps(payload, sort_keys=True)
         payload_hash = hashlib.sha256(payload_str.encode()).hexdigest()
         return cls.objects.create(payment_id=payment_id, payload_hash=payload_hash)
+    
+
+
+
+class ArquivoTeste(models.Model):
+    nome = models.CharField(max_length=100)
+    imagem = models.ImageField(upload_to='uploads/')
+
+    def __str__(self):
+        return self.nome
