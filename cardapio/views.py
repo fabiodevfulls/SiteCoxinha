@@ -117,40 +117,32 @@ def meus_pedidos(request):
 
 @login_required
 def finalizar_compra(request, pedido_id=None):
-    """
-    View aprimorada para:
-    - Reutilização quando precisa gerar novo PIX
-    - Validações adicionais
-    """
     try:
+        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+
         if pedido_id:
-            # Fluxo de regeneração de PIX para pedido existente
             pedido = get_object_or_404(Pedido, id=pedido_id, usuario=request.user)
-            
-            # Verifica se já foi pago
+
             if pedido.status == 'paid':
                 return JsonResponse({
                     'error': 'Este pedido já foi pago',
                     'redirect_url': reverse('pagamento_aprovado', args=[pedido.id])
                 }, status=400)
-                
-            # Cancela o pagamento anterior no Mercado Pago
+
             if pedido.codigo_transacao:
-                sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
                 sdk.payment().cancel(pedido.codigo_transacao)
         else:
-            # Fluxo normal - novo pedido
             carrinho = ItemCarrinho.objects.filter(usuario=request.user)
             if not carrinho.exists():
                 return JsonResponse({'error': 'Seu carrinho está vazio'}, status=400)
-            
+
             total = sum(item.subtotal() for item in carrinho)
             pedido = Pedido.objects.create(
                 usuario=request.user,
                 total=total,
                 status='pending'
             )
-            
+
             for item in carrinho:
                 PedidoItem.objects.create(
                     pedido=pedido,
@@ -158,9 +150,58 @@ def finalizar_compra(request, pedido_id=None):
                     quantidade=item.quantidade,
                     preco_unitario=item.produto.preco
                 )
-        
-        # Cria novo pagamento no Mercado Pago
-        sdk = mercadopago.SDK(settings.MERCADOPAGO['ACCESS_TOKEN'])
+
+        # Construir lista de itens do pedido
+        items = []
+        for item in pedido.pedidoitem_set.all():
+            items.append({
+                "id": str(item.produto.id),
+                "title": item.produto.nome,
+                "description": item.produto.descricao or "Sem descrição",
+                "category_id": "food",  # categoria genérica
+                "quantity": item.quantidade,
+                "unit_price": float(item.preco_unitario),
+                "currency_id": "BRL"
+            })
+
+        payment_data = {
+            "transaction_amount": float(pedido.total),
+            "payment_method_id": "pix",
+            "payer": {
+                "email": request.user.email,
+                "first_name": request.user.first_name or "Cliente",
+                "last_name": request.user.last_name or "Anônimo"
+            },
+            "items": items,  # Adiciona itens ao pagamento
+            "notification_url": request.build_absolute_uri(reverse('webhook_mercadopago')),
+            "description": f"Pedido #{pedido.id}",
+            "external_reference": str(pedido.id),
+        }
+
+        payment_response = sdk.payment().create(payment_data)
+
+        if payment_response['status'] not in [200, 201]:
+            error_msg = payment_response.get('response', {}).get('message', 'Erro no Mercado Pago')
+            raise Exception(error_msg)
+
+        payment = payment_response['response']
+        pedido.codigo_transacao = payment['id']
+        pedido.save()
+
+        if not pedido_id:
+            carrinho.delete()
+
+        return JsonResponse({
+            'success': True,
+            'redirect_url': reverse('pagamento_pix', args=[pedido.id])
+        })
+
+    except Exception as e:
+        logger.error(f"Erro ao finalizar compra: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'error': str(e),
+            'redirect_url': reverse('pagamento_falhou', args=[pedido.id]) if 'pedido' in locals() else reverse('ver_carrinho')
+        }, status=500)
 
         
         payment_data = {
