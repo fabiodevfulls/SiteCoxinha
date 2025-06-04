@@ -2,6 +2,9 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # Caminho base do projeto
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -14,6 +17,15 @@ load_dotenv(BASE_DIR / '.env')
 # Chave secreta e modo de depuração
 SECRET_KEY = os.getenv('SECRET_KEY', 'chave-insegura-para-dev')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+
+cloudinary.config(
+    cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key = os.getenv('CLOUDINARY_API_KEY'),
+    api_secret = os.getenv('CLOUDINARY_API_SECRET'),
+    secure = True
+)
+
 
 # Hosts permitidos
 ALLOWED_HOSTS = [
@@ -42,6 +54,9 @@ INSTALLED_APPS = [
     'crispy_forms',
     'import_export',
     'cardapio',
+    # app Cloudinary para models
+    'cloudinary_storage',
+    'cloudinary',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -54,7 +69,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Adiciona o middleware de Whitenoise
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -155,9 +170,18 @@ LOGGING = {
         },
     },
 }
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # Diretório onde os arquivos serão coletados
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'  # Para compactação
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+MEDIA_URL = f"https://res.cloudinary.com/{os.getenv('CLOUDINARY_CLOUD_NAME')}/image/upload/"
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+# Whitenoise para static
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+
+
+
 

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 import hashlib
+from cloudinary.models import CloudinaryField
 
 class Usuario(AbstractUser):
     endereco = models.TextField(blank=True)
@@ -39,7 +40,7 @@ class Produto(models.Model):
         validators=[MinValueValidator(Decimal('0.01'))]
     )
     categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True)
-    imagem = models.ImageField(upload_to='produtos/', blank=True, null=True)
+    imagem = CloudinaryField('image', blank=True, null=True, default='url_da_imagem_padrao')
     disponivel = models.BooleanField(default=True)
     data_cadastro = models.DateTimeField(default=timezone.now)
 
@@ -117,9 +118,3 @@ class PaymentLog(models.Model):
 
 
 
-class ArquivoTeste(models.Model):
-    nome = models.CharField(max_length=100)
-    imagem = models.ImageField(upload_to='uploads/')
-
-    def __str__(self):
-        return self.nome

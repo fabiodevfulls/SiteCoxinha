@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Field
 from .models import ItemCarrinho, Produto, Categoria,Usuario # Importe todos os models que precisam do admin
-from .models import ArquivoTeste
+
 
 
 
@@ -34,4 +34,3 @@ admin.site.register(ItemCarrinho, ItemCarrinhoAdmin)
 admin.site.register(Produto)
 admin.site.register(Categoria)
 admin.site.register(Usuario)
-admin.site.register(ArquivoTeste)
