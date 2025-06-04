@@ -312,10 +312,6 @@ def webhook_mercadopago(request):
     try:
         # Verificação opcional da assinatura
         signature = request.headers.get('X-Signature')
-        if not signature and not settings.DEBUG:
-            logger.warning("Webhook sem assinatura")
-            return HttpResponse(status=400)
-
         if signature and not validate_mercadopago_signature(request.body, signature):
             logger.warning("Assinatura do webhook inválida")
             return HttpResponse(status=403)
@@ -346,8 +342,6 @@ def webhook_mercadopago(request):
 
         if payment['status'] != 200:
             logger.warning(f"Pagamento não encontrado no Mercado Pago: {payment_id}")
-
-            # Permitir testes com payment_id falso no modo DEBUG
             if settings.DEBUG:
                 return HttpResponse(status=200)
             return HttpResponse(status=400)
@@ -361,7 +355,7 @@ def webhook_mercadopago(request):
             logger.error(f"Pedido não encontrado para o pagamento {payment_id}: {e}")
             return HttpResponse(status=404)
 
-        # Atualizar status do pedido conforme status do pagamento
+        # Atualizar status do pedido
         status_pagamento = payment_data['status']
         if status_pagamento == 'approved':
             pedido.status = 'paid'
@@ -378,6 +372,7 @@ def webhook_mercadopago(request):
     except Exception as e:
         logger.error(f"Erro inesperado no webhook: {e}", exc_info=True)
         return HttpResponse(status=500)
+
 
 @login_required
 def verificar_status_pagamento(request, pedido_id):
